@@ -31,7 +31,7 @@ temp                        # 아직 반영은 안되었지만, 향후 적용할
 
 2) Path 설정
 [gpadmin@mdw ~]$ vi ~/.bashrc
-source /data1/gpkrutil/gpkrutil_path.sh
+source /data/gpkrutil/gpkrutil_path.sh
 
 [gpadmin@mdw ~]$ source ~/.bashrc
 
