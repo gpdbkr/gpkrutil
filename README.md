@@ -1,5 +1,8 @@
-#gpkrutil은 Greenplum 운영을 위한 스크립트입니다.
+## gpkrutil은 Greenplum 운영을 위한 스크립트입니다.
 
+## 설정을 위한 작업
+
+```
 1) 스크립트 unzip
 소스를 다운 받아 gpkrutil-main.zip을 /data/에 copy
 /data/ 폴더에 copy
@@ -75,9 +78,11 @@ cron_vacuum_analyze_gpadmin_2022-03-25.log
 cron_vacuum_analyze_gpperfmon_2022-03-25.log  
 killed_idle.20220401.log
 [gpadmin@mdw cronlog]$
+```
 
-#기타 사항
+## 기타 사항
 1. DB 로그에 쿼리 소요시간을 적재를 위해서는 log_duration을 on으로 설정
-[gpadmin@mdw cronlog]$ gpconfig -c log_duration -v on --masteronly ^C
+```
+[gpadmin@mdw cronlog]$ gpconfig -c log_duration -v on --masteronly
 [gpadmin@mdw cronlog]$ gpstop -u
-
+```
