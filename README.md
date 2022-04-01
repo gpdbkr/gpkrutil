@@ -1,4 +1,4 @@
-## gpkrutil은 Greenplum 운영을 위한 스크립트입니다.
+# gpkrutil은 Greenplum 운영을 위한 스크립트입니다.
 
 ## 설정을 위한 작업
 
