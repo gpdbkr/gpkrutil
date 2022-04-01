@@ -4,8 +4,7 @@
 
 ```
 1) 스크립트 unzip
-소스를 다운 받아 gpkrutil-main.zip을 /data/에 copy
-/data/ 폴더에 copy
+소스를 다운 받아 gpkrutil-main.zip을 마스터 노드의 /data/ 폴더에 copy
 [gpadmin@mdw ~]$ cd /data
 [gpadmin@mdw data]$ ls -la
 -rw-rw-r--   1 gpadmin gpadmin 762536  3월 31 17:53 gpkrutil-main.zip
