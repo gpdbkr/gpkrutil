@@ -52,7 +52,14 @@ sdw3
 sdw4
 [gpadmin@mdw gpkrutil]$
 
-4) Crontab 설정
+4) gpkrutil을 위한 table 및 VIEW 생성
+[gpadmin@mdw gpkrutil]$ ./gpkrutil_crt_schema.sh
+[gpadmin@mdw gpkrutil]$ cd mnglog
+[gpadmin@mdw mnglog]$ ls -la
+-rw-rw-r--  1 gpadmin gpadmin 13284  3월 30 13:50 gpkrutil_crt_schema.log
+[gpadmin@mdw mnglog]$ grep  ERROR *.log
+
+5) Crontab 설정
 [gpadmin@mdw gpkrutil]$ cd crontool
 [gpadmin@mdw crontool]$ cat crontab.txt
 * * * * * /bin/bash /data/gpkrutil/crontool/cron_sys_rsc.sh 5 11 &
@@ -63,12 +70,13 @@ sdw4
 crontab에 적용
 [gpadmin@mdw crontool]$ crontab -e 
 
-5) 로그 확인
+6) 로그 확인
 [gpadmin@mdw crontool]$ cd $GPKRUTIL/statlog
 [gpadmin@mdw statlog]$ ls
 lt.20220401.txt  qqit.20220401.txt  session.20220401.txt
 qq.20220401.txt  rss.20220401.txt   sys.20220401.txt
 [gpadmin@mdw statlog]$
+
 [gpadmin@mdw statlog]$ cd $GPKRUTIL/cronlog
 [gpadmin@mdw cronlog]$ ls
 cron_log_load_2022-03-29.log                  
@@ -77,6 +85,7 @@ cron_vacuum_analyze_gpadmin_2022-03-25.log
 cron_vacuum_analyze_gpperfmon_2022-03-25.log  
 killed_idle.20220401.log
 [gpadmin@mdw cronlog]$
+
 ```
 
 ## 기타 사항
