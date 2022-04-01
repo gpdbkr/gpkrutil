@@ -1,0 +1,193 @@
+select now(), pg_terminate_backend(53928);
+select now(), pg_terminate_backend(53930);
+select now(), pg_terminate_backend(53938);
+select now(), pg_terminate_backend(15866);
+select now(), pg_terminate_backend(54501);
+select now(), pg_terminate_backend(53928);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:03:47.722546+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(53930);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:03:47.730883+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(53938);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:03:47.742552+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(15866);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:03:47.750399+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(55033);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:05:01.665243+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(55035);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:05:01.676713+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(55037);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:05:01.682079+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(55021);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:05:01.687961+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(54802);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:05:01.693404+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(54807);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:05:01.696734+09 | t
+(1 row)
+
+select now(), datname, pid, sess_id, pg_terminate_backend(55228);
+ERROR:  column "datname" does not exist
+LINE 1: select now(), datname, pid, sess_id, pg_terminate_backend(55...
+                      ^
+select now(), datname, pid, sess_id, pg_terminate_backend(55243);
+ERROR:  column "datname" does not exist
+LINE 1: select now(), datname, pid, sess_id, pg_terminate_backend(55...
+                      ^
+select now(), pg_terminate_backend(55228);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:09:19.107184+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(55906);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:09:19.119253+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(55806);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:10:33.477772+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56315);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:10:33.492899+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56314);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:10:33.500015+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56357);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:10:49.872004+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56377);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:10:49.884205+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56383);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:10:49.890121+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56353);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:10:59.120988+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56419);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:10:59.134405+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56707);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:12:20.237146+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56623);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:12:20.247658+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56622);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:12:20.254636+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56917);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:12:28.077065+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56621);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:12:28.091466+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(56996);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:13:22.751732+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(57027);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:13:22.764966+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(57181);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:13:25.402248+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(57241);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-25 18:13:27.974477+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(57322);
+             now              | pg_terminate_backend 
+------------------------------+----------------------
+ 2022-03-25 18:13:36.04264+09 | t
+(1 row)
+

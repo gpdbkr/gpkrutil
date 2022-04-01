@@ -1,0 +1,42 @@
+1.pgbouncer 설정
+ - pgbouncer (OLTP성) 기준
+/data/master/pgbouncer/pgbouncer.ini
+
+[database]
+edudb = host=192.168.0.2(vip) port=5432 dbname=edudb
+
+[pgbouncer]
+pool_mode = session
+#pool_size = 600
+default_pool_size = 10
+max_client_conn = 20000 (타 시스템의 경우 default_pool_size의 10배 내지 100배로 설정 함)
+listen_port = 6543
+listen_addr = *
+auth_type = md5
+auth_file = /data/master/pgbouncer/pgbouncer.user
+logfile = /data/master/pgbouncer/logs/pgbouncer.log
+pidfile = /data/master/pgbouncer/pid/pgbouncer.pid
+admin_users = gpadmin
+#min_pool_size = 10
+reserve_pool_size = 590
+reserve_pool_timeout = 1
+client_login_timeout = 30
+server_lifetime = 7200
+ignore_startup_parameters = extra_float_digits
+server_reset_query = 
+
+
+2.pgbouncer 적용시 추가 확인 사항
+ - vip 및 gpfailover 서비스 이용시 pgbouncer 까지 failover 하려면, mdw pg_hba.conf, pgbouncer 내용을 주기적으로 sync 하며,  
+   gpfailover.sh 내용에 아래 내용 추가
+/usr/local/bin/gpfailover.sh
+...
+기존내용
+### arping
+arping -f -w 10 -s ${VIP} -U ${VIP_GW} -I ${ARPING_INTERFACE}
+
+추가내용
+### Start pgbouncer
+su - gpadmin -c "gpstop -u'
+su - gpadmin -c "/usr/local/greenplum-db/bin/pgbouncer -d /data/master/pgbouncer/pgbouncer.ini
+....

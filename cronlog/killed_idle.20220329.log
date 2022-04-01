@@ -1,0 +1,18 @@
+select now(), pg_terminate_backend(53202);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-29 06:51:59.042564+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(67496);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-29 06:51:59.052805+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(53022);
+             now              | pg_terminate_backend 
+------------------------------+----------------------
+ 2022-03-29 06:51:59.08544+09 | t
+(1 row)
+

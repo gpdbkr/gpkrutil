@@ -1,0 +1,18 @@
+#!/bin/sh
+
+source ~/.bashrc
+STAT_PATH=${GPKRUTIL}/stattool 
+export STAT_PATH
+
+if [ $# -ne 2 ]
+then
+   /bin/echo "usage is $0 <interval> <count>"
+   exit 1
+fi
+
+${STAT_PATH}/qq.sh $1 $2      >> ${STATLOG}/qq.`/bin/date '+%Y%m%d'`.txt &
+${STAT_PATH}/qqit.sh $1 $2    >> ${STATLOG}/qqit.`/bin/date '+%Y%m%d'`.txt &
+${STAT_PATH}/lt.sh $1 $2      >> ${STATLOG}/lt.`/bin/date '+%Y%m%d'`.txt &
+${STAT_PATH}/rss.sh $1 $2     >> ${STATLOG}/rss.`/bin/date '+%Y%m%d'`.txt &
+${STAT_PATH}/session.sh $1 $2 >> ${STATLOG}/session.`/bin/date '+%Y%m%d'`.txt &
+

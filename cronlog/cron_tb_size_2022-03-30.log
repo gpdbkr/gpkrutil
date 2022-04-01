@@ -1,0 +1,3 @@
+delete from dba.tb_size where log_dt = to_char(now(), 'yyyymmdd');
+DELETE 464
+COPY 232

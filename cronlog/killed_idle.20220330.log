@@ -1,0 +1,48 @@
+select now(), pg_terminate_backend(56376);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-30 06:55:50.111816+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(73901);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-30 12:14:02.083648+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(73903);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-30 12:16:01.822598+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(73937);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-30 12:22:02.022534+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(3132);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-30 17:27:01.367059+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(3134);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-30 17:41:01.253753+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(3136);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-30 17:41:01.265089+09 | t
+(1 row)
+
+select now(), pg_terminate_backend(10876);
+              now              | pg_terminate_backend 
+-------------------------------+----------------------
+ 2022-03-30 18:01:02.066396+09 | t
+(1 row)
+

@@ -1,0 +1,12 @@
+2022-04-01 17:13:02
+  rsqname   | countlimit | countvalue | waiters | running | costlimit | costvalue | ignorecostlimit | overcommit 
+------------+------------+------------+---------+---------+-----------+-----------+-----------------+------------
+ pg_default |         20 |          0 |       0 |       0 |        -1 |           |               0 | f
+(1 row)
+
+2022-04-01 17:14:01
+  rsqname   | countlimit | countvalue | waiters | running | costlimit | costvalue | ignorecostlimit | overcommit 
+------------+------------+------------+---------+---------+-----------+-----------+-----------------+------------
+ pg_default |         20 |          0 |       0 |       0 |        -1 |           |               0 | f
+(1 row)
+

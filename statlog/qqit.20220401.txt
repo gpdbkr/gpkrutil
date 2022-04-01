@@ -1,0 +1,12 @@
+2022-04-01 17:13:01
+ backend_tiem | duration_time | usename | client_addr | waiting |  pid  | sess_id |      substring       
+--------------+---------------+---------+-------------+---------+-------+---------+----------------------
+ 2            | 00:00:00      | gpadmin |             | f       | 30143 |  178401 | SELECT substring(bac
+(1 row)
+
+2022-04-01 17:14:01
+ backend_tiem | duration_time | usename | client_addr | waiting |  pid  | sess_id |      substring       
+--------------+---------------+---------+-------------+---------+-------+---------+----------------------
+ 2            | 00:00:00      | gpadmin |             | f       | 31056 |  178426 | SELECT substring(bac
+(1 row)
+

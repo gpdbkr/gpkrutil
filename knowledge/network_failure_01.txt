@@ -1,0 +1,9 @@
+
+1. mtu 설정
+현상: gphdfs external table 시도시 80% 확률로 에러 메세지 발생과 실패 발생
+원인 : A시스템은 mtu는 9000이며, spine switch는 mtu 1500으로 설정 되어 있음 
+       같은 spine switch를 사용하는 ctttm (mtu 1500)은 gphdfs 정상동작함.
+조치 : mtu를 직접 바꾸지 않고 datalake에 통신하는 인터페이스의 MSS를 1460으로 변경 이후 gphdfs  정상 동작 확인
+명령어: route add -host 192.28.*.*/32 gw 12.56.*.* mss 1460
+
+

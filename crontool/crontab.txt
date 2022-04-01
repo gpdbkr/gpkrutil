@@ -1,0 +1,21 @@
+
+## system resource logging
+* * * * * /bin/bash /data/gpkrutil/crontool/cron_sys_rsc.sh 5 11 &
+
+## database logging
+* * * * * /bin/bash /data/gpkrutil/stattool/dostat 1 1 &
+
+## database catalog vacuum analyze 
+00 00 * * * /bin/bash /data/gpkrutil/crontool/cron_vacuum_analyze.sh &
+
+## kill idle session
+* * * * * /bin/bash /data/gpkrutil/crontool/cron_kill_idle.sh &
+
+## backup and sync config file
+00 00 * * * /bin/bash /data/gpkrutil/crontool/cron_pghba_sync_backup.sh
+
+## upload database log
+00 01 * * * /bin/bash /data/gpkrutil/crontool/cron_log_load.sh
+
+## logging table size
+10 00 * * * /bin/bash /data/gpkrutil/crontool/cron_tb_size.sh
