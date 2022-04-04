@@ -1,0 +1,89 @@
+1.Greenplum 6.19.0까지의 gpexpand 방식
+파티션단위가 아닌 테이블 단위로 리벨런싱 함.
+- 대용량 파티션 테이블이 있을 경우, 개별 파티션 단위가 아니기 때문에 특정 테이블로 인하여 리벨런싱할 때 장기간 소요 되고, 시간 가늠이 힘듬.
+    
+대용량 파티션 테이블 리벨런싱 성능 개선을 위한 워크어라운드
+- 하나의 통 파티션 테이블을 파티션 구간별로 별도로 테이블을 생성하여, 리벨런싱이 끝나고 재조립해야 함.
+   ex) 일별 파티션의 1년보관 파티션의 테이블이 있을 경우, 월 단위로 일파티션을 생성하여 파티션 exchange로 구성 함.
+   1개 테이블의 365개 일파티션 => 12개 테이블에 30개 일파티션)
+
+기타 사항
+ - 재분산 목적으로 4.x대 방식과 같이 파티션별 reorg 방식은 지원하지 않음.
+ - 재분산을 위해서는 아래와 같이 구문을 실행 해야 함.
+     ex) alter table edu_sch.lineitem  EXPAND TABLE;
+- 증설 후에 부모 테이블에 대해서 Reorg하더라도 리벨런싱이 되지 않음. (Reorg만 수행 됨)
+    ex) ALTER TABLE edu_sch.orders SET WITH (REORGANIZE=true) DISTRIBUTED BY (o_orderkey);
+
+2.Greenplum 6.19.1의 gpexpand 방식
+파티션 테이블일 경우 파티션 단위로 리벨런싱을 함.
+- 대용량 파티션 테이블일 경우, 파티션별로 리벨런싱을 하기 때문에, 진행상황을 확인하기 쉽고, 시간 가늠이 가능
+
+리벨런싱 메커니즘
+- 증설시에 파티션 테이블의 각 파티션의 분산키를 Randomly 로 변경  (gpexpand -i gpexpand_inputfile 수행시 자동 호출)
+  ex) ALTER TABLE edu_sch.orders EXPAND PARTITION PREPARE;  
+- gpexpand -n x 으로 수행시 개별 테이블/파티션레벨에서 reorg 방식으로 수행 됨.
+  ex) alter table edu_sch.lineitem_1_prt_p2009 SET WITH (REORGANIZE=true) DISTRIBUTED BY (l_orderkey)
+
+리벨런싱 전/수행중 쿼리 수행 여부
+- 증설후 리벨런싱이 수행전에 insert/join 쿼리 수행 됨.
+- 리벨런싱 중 참조 테이블이 쿼리 수행시에는 락 발생(Wating 발생)
+
+리벨런싱 전/수행중 실행된 쿼리 예시
+- 조인 쿼리 (파티션 일부분은 리벨런싱이 되었고, 일부분은 되지 않은 상태, 비파티션 테이블도 동일)
+select
+n_name,
+sum(l_extendedprice * (1 - l_discount)) as revenue
+from
+customer,
+orders,
+lineitem,
+supplier,
+nation,
+region
+where
+c_custkey = o_custkey
+and l_orderkey = o_orderkey
+and l_suppkey = s_suppkey
+and c_nationkey = s_nationkey
+and s_nationkey = n_nationkey
+and n_regionkey = r_regionkey
+and r_name = 'AMERICA'
+and o_orderdate >= date '1997-01-01'
+and o_orderdate < date '1997-01-01' + interval '1 year'
+group by
+n_name
+order by
+revenue desc;
+
+- CTAS 쿼리
+create table lineitem_batch
+as
+select * from lineitem
+where l_shipdate >= '19920101'::date
+and   l_shipdate <  '19930101'::date;
+psql:/data/edu/query/batch05.sql:6: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT 756352
+Time: 5788.498 ms
+
+3.gpexpand 할때 주의 사항
+카탈로그 vacuum full 사전 수행 
+- gpexpand 수행시(증설시)에 gpseg0의 카탈로그를 tar으로 묶어서 신규 세그먼트로 보내기 때문에 사이즈를 줄임.
+- gpexpand 수행시점에 vacuum full이 오래 걸리는 경우, timeout으로 에러 발생할 수 있기 때문에 사전 수행 필요
+
+standby master 사전 삭제
+- 스탠바이 마스터가 존재하면서 세그먼트 증설할 경우 에러 발생, (스탠바이 마스터는 제일 마지막 dbid를 가짐)
+
+불필요한 로그나 파일 삭제
+- gpexpand를 수행하게 되면, gpseg0을 tar로 묶어서 다른 서버로 전송하기 때문에 불필요한 DB로그를 삭제하면 용량을 줄일 수 있어 작업 시간을 줄일 수 있음.
+  master의 DB로그로 불필요한 파일이 있으면 삭제 필요
+/tmp 영역, 마스터 노드 또는 세그먼트 0번 노드 
+- 카탈로그 파일을 tar로 묶을 때 /tmp 영역을 사용함. 이쪽 영역이 작을 경우 에러 발생할 수 있음.
+
+4.기타 의견
+Greenplum 6.19.1에서 gpexpand의 기능개선된 부분이 Greenplum 6.x에서 증설/리벨런싱 할 때의 고질적인 문제 때문이지 않을까 생각됩니다.
+이를 위해서는 다양한 파티션 exchange 등의 워크어라운드를 적용해야 하는데, 수작업이어서 불편한 점등을 개선되었다고 볼수 있습니다. 
+
+6.18.2 버전에서 파티션 레벨의 리벨런싱 테스트를 수행하였으나, DB 단에서 막아놓았기 때문에 파티션 레벨로 리벨런싱하는 것은 불가하였습니다.
+
+개인적인 의견으로는 증설하는 시점에서 만큼은 Greenplum 6.19.1로 업그레이드 하여, 증설하는게 시간을 단축할 수 있고, 
+만약 리벨런싱을 끝나지 않았을 경우에라도 서비스를 할 수 있기 때문에 6.19.1으로 업그레이드하는 것이 좋을 것으로 판단됩니다. 
