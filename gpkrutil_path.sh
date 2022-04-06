@@ -22,12 +22,12 @@ alias tails='ls  ${GPKRUTIL}/statlog/sys.202*.txt | tail -1 | xargs tail -f'
 ###########################
 ####### DB session 
 ###########################
-alias cq='psql -c "select now()-query_start, pid, usename, sess_id, query from pg_stat_activity where state not like '\''%idle%'\'' order by 1 desc;"'
-alias qq='psql -c " select now()-query_start, usename, client_addr, waiting, pid, sess_id, rsgname from pg_stat_activity  where state not like '\''%idle%'\'' order by 4, 1 desc;"'
-alias qqit='psql  -c "SELECT substring(backend_start,1,19) as backend_tiem, now()-query_start as duration_time, usename, client_addr, waiting, pid, sess_id,rsgname, substring(query,1,20) FROM pg_stat_activity AS query_string WHERE state <> '\''idle'\'' ORDER BY waiting, duration_time desc;"'
+alias qq='psql -c " SELECT datname, now()-query_start as duration_time, usename, client_addr, waiting, pid, sess_id, rsgname from pg_stat_activity WHERE state not like '\''%idle%'\'' ORDER BY waiting, duration_time desc;"'
+alias qqit='psql  -c "SELECT datname, substring(backend_start,1,19) as backend_time, now()-query_start as duration_time, usename, client_addr, waiting, waiting_reason, pid, sess_id, rsgname, substring(query,1,60) FROM pg_stat_activity as query_string WHERE state <> '\''idle'\'' ORDER BY waiting, duration_time desc;"'
+alias cq='psql -c "SELECT now()-query_start, pid, usename, sess_id, query from pg_stat_activity where state not like '\''%idle%'\'' order by 1 desc;"'
 alias is='psql -c " SELECT now()-query_start, usename, pid, sess_id, query from pg_stat_activity where state like '\''idle'\'' order by 1 desc;"'
 alias it='psql  -c "SELECT now()-query_start, usename, pid, sess_id, query FROM pg_stat_activity where trim(query) like '\''%in transaction'\'' ORDER BY 1 DESC;"'
-alias tq='psql -c " select count(*) from pg_stat_activity;"'
+alias tq='psql -c "SELECT count(*) from pg_stat_activity;"'
 
 
 ###########################
@@ -64,48 +64,30 @@ alias rga='psql -c "SELECT rolname, rsgname FROM pg_roles, pg_resgroup  WHERE pg
 alias rg='psql -c "SELECT * FROM gp_toolkit.gp_resgroup_status_per_host;"'
 alias rgss='psql -c "SELECT * FROM gp_toolkit.gp_resgroup_status_per_segment;"'
 alias rgd='psql -c "SELECT * FROM gp_toolkit.gp_resgroup_status;"'
-alias rss=‘psql -c “SELECT rs.rsgname, 
-rc.concurrency, 
-rs.num_running, 
-rs.num_queueing, 
-rs.num_queued,
-rs.num_executed,
-rs.total_queue_duration,
-rs.cpu_avg,
-rc.cpu_rate_limit,
-rc.memory_limit
-FROM (SELECT rsgname, 
-	num_running, 
-	num_queueing, 
-	num_queued, 
-	num_executed, 
-	total_queue_duration,
-	round(avg(cpu_value::float)) as cpu_avg
-	FROM (SELECT rsgname,
-		num_running, 
-		num_queueing,
-		num_queued,
-		num_executed,
-		total_queue_duration,
-		row_to_json(json_each(cpu_usage::json))->>’\’‘key’\’’ as cpu_key
-		row_to_json(json_each(cpu_usage::json))->>’\’’value’\’’ as cpu_value
-		FROM gp_toolkit.gp_resgroup_status order by rsgname) z 
-	WHERE z.cpu_key::int > -1
-	GROUP BY rsgname, num_running, num_queueing, num_queued, num_executed, total_queue_duration
-	ORDER BY 2 desc, 7 desc) as rs,
-gp_toolkit.gp_resgroup_config as rc  
-WHERE rs.rsgname = rc.groupname;”’
+alias rss='psql -c “SELECT rs.rsgname,rc.concurrency,rs.num_running,rs.num_queueing,rs.num_queued,rs.num_executed,rs.total_queue_duration,rs.cpu_avg,rc.cpu_rate_limit,rc.memory_limit FROM (SELECT rsgname,num_running,num_queueing,num_queued,num_executed,total_queue_duration,round(avg(cpu_value::float)) as cpu_avg FROM (SELECT rsgname,num_running,num_queueing,num_queued,num_executed,total_queue_duration,row_to_json(json_each(cpu_usage::json))->>'\''key'\'' as cpu_key,row_to_json(json_each(cpu_usage::json))->>'\''value'\'' as cpu_value FROM gp_toolkit.gp_resgroup_status order by rsgname) z WHERE z.cpu_key::int > -1 GROUP BY rsgname, num_running, num_queueing, num_queued, num_executed, total_queue_duration ORDER BY 2 desc, 7 desc) as rs, gp_toolkit.gp_resgroup_config as rc WHERE rs.rsgname = rc.groupname;”'
 
 ###########################
 ####### pgbouncer 
 ###########################
 alias pgbc='psql -p 6543 pgbouncer -c "show clients"'
+alias pgbs='psql -p 6543 pgbouncer -c "show sockets"'
 alias pgbf='psql -p 6543 pgbouncer -c "show config"'
 alias pgbp='psql -p 6543 pgbouncer -c "show pools"'
 alias pgbreload='psql -p 6543 pgbouncer -c “RELOAD;"'
-alias pgbs='psql -p 6543 pgbouncer -c "show sockets"'
 alias pgbstart='/usr/local/greenplum-db/bin/pgbouncer -d /data/master/pgbouncer/pgbouncer.ini'
 alias pgbstop='psql -p 6543 pgbouncer -c "SHUTDOWN;"'
+
+
+###########################
+####### pxf 
+###########################
+alias pxfstatus='/usr/local/greenplum-db/pxf/bin/pxf cluster status'
+alias pxfstart='/usr/local/greenplum-db/pxf/bin/pxf cluster start'
+alias pxfstop='/usr/local/greenplum-db/pxf/bin/pxf cluster stop'
+alias pxfsync='/usr/local/greenplum-db/pxf/bin/pxf cluster sync'
+alias pxfinit='/usr/local/greenplum-db/pxf/bin/pxf cluster init'
+alias pxfreset='/usr/local/greenplum-db/pxf/bin/pxf cluster reset'
+
 
 ########################################
 #GP_BACKUP_DIR=/data1/backup
