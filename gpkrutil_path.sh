@@ -52,18 +52,49 @@ alias invalid='psql -c "SELECT * from gp_configuration where valid='\''f'\'';"'
 ###########################
 ####### resource queue
 ###########################
-alias rs='psql  -c " select rsqname, rsqcountlimit cntlimit, rsqcountvalue cntval, rsqcostlimit costlimit, rsqcostvalue costval, rsqmemorylimit memlimit, rsqmemoryvalue memval, rsqwaiters waiters, rsqholders holders from gp_toolkit.gp_resqueue_status;"'
-alias rsh='psql -c " SELECT a.rsqname,a.rsqcountlimit,a.rsqcountvalue,a.rsqwaiters,a.rsqholders,a.rsqcostlimit,a.rsqcostvalue,a.rsqmemorylimit,a.rsqmemoryvalue,b.rsqignorecostlimit,b.rsqovercommit,c.ressetting FROM gp_toolkit.gp_resqueue_status a INNER JOIN pg_resqueue b ON b.rsqname = a.rsqname INNER JOIN pg_resqueue_attributes c ON c.rsqname = a.rsqname AND c.restypid = 5 ORDER BY 1;"'
+alias rqs='psql  -c " select rsqname, rsqcountlimit cntlimit, rsqcountvalue cntval, rsqcostlimit costlimit, rsqcostvalue costval, rsqmemorylimit memlimit, rsqmemoryvalue memval, rsqwaiters waiters, rsqholders holders from gp_toolkit.gp_resqueue_status;"'
+alias rqsh='psql -c " SELECT a.rsqname,a.rsqcountlimit,a.rsqcountvalue,a.rsqwaiters,a.rsqholders,a.rsqcostlimit,a.rsqcostvalue,a.rsqmemorylimit,a.rsqmemoryvalue,b.rsqignorecostlimit,b.rsqovercommit,c.ressetting FROM gp_toolkit.gp_resqueue_status a INNER JOIN pg_resqueue b ON b.rsqname = a.rsqname INNER JOIN pg_resqueue_attributes c ON c.rsqname = a.rsqname AND c.restypid = 5 ORDER BY 1;"'
 alias rss='psql -c " select a.rsqname, a.rsqcountlimit as countlimit, a.rsqcountvalue as countvalue, a.rsqwaiters as waiters, a.rsqholders as running ,a.rsqcostlimit as costlimit, a.rsqcostvalue as costvalue, b.rsqignorecostlimit as ignorecostlimit, b.rsqovercommit as overcommit from pg_resqueue_status a, pg_resqueue b where a.rsqname =b.rsqname order by 1;"'
-alias sq='psql -c " select * from pg_resqueue order by 1;"'
+alias rq='psql -c " select * from pg_resqueue order by 1;"'
 
 ###########################
 ####### resource group
 ###########################
 alias rga='psql -c "SELECT rolname, rsgname FROM pg_roles, pg_resgroup  WHERE pg_roles.rolresgroup=pg_resgroup.oid;"'
 alias rg='psql -c "SELECT * FROM gp_toolkit.gp_resgroup_status_per_host;"'
-alias rgs='psql -c "SELECT * FROM gp_toolkit.gp_resgroup_status_per_segment;"'
+alias rgss='psql -c "SELECT * FROM gp_toolkit.gp_resgroup_status_per_segment;"'
 alias rgd='psql -c "SELECT * FROM gp_toolkit.gp_resgroup_status;"'
+alias rss=‘psql -c “SELECT rs.rsgname, 
+rc.concurrency, 
+rs.num_running, 
+rs.num_queueing, 
+rs.num_queued,
+rs.num_executed,
+rs.total_queue_duration,
+rs.cpu_avg,
+rc.cpu_rate_limit,
+rc.memory_limit
+FROM (SELECT rsgname, 
+	num_running, 
+	num_queueing, 
+	num_queued, 
+	num_executed, 
+	total_queue_duration,
+	round(avg(cpu_value::float)) as cpu_avg
+	FROM (SELECT rsgname,
+		num_running, 
+		num_queueing,
+		num_queued,
+		num_executed,
+		total_queue_duration,
+		row_to_json(json_each(cpu_usage::json))->>’\’‘key’\’’ as cpu_key
+		row_to_json(json_each(cpu_usage::json))->>’\’’value’\’’ as cpu_value
+		FROM gp_toolkit.gp_resgroup_status order by rsgname) z 
+	WHERE z.cpu_key::int > -1
+	GROUP BY rsgname, num_running, num_queueing, num_queued, num_executed, total_queue_duration
+	ORDER BY 2 desc, 7 desc) as rs,
+gp_toolkit.gp_resgroup_config as rc  
+WHERE rs.rsgname = rc.groupname;”’
 
 ###########################
 ####### pgbouncer 
