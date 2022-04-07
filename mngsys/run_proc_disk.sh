@@ -1,5 +1,6 @@
 #!bin/bash
 
+export GPKRUTIL="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 source /home/gpadmin/.bash_profile
 
 demons=`ps -ef | grep chk_proc_disk.sh | grep -v grep | wc -l`
@@ -13,4 +14,4 @@ else
     echo "starting chk_proc_disk!!!"
 fi
 
-sh /home/gpadmin/dba/chk_proc_disk.sh 17180
+sh ${GPKRUTIL}/mngsys/chk_proc_disk.sh 17180
