@@ -156,6 +156,8 @@ qq.sh                       # 활성 세션 로그
 qqit.sh                     # 활성 세션 로그 및 쿼리 일부 로깅
 rss.sh                      # resource queue 상태 로깅
 session.sh                  # 세션 정보(all, active, idle) 세션 수 로깅
+session_user.sh             # 사용자별 세션 카운트 로깅
+pgb_user.sh                 # pgbouncer의 사용자별 pool 카운트 로깅
 
 [gpadmin@mdw gpkrutil]$
 ```
