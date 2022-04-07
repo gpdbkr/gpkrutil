@@ -1,8 +1,12 @@
 #!/bin/bash
 
+export GPKRUTIL="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+export STATLOG=${GPKRUTIL}/statlog
+export CRONLOG=${GPKRUTIL}/cronlog
+
 source /home/gpadmin/.bash_profile
 DT=`date "+%Y-%m-%d %H:%M:%S"`
-Logfile=/home/gpadmin/logs/chk_process_diskio_`date +"%Y-%m-%d"`.log
+Logfile= ${GPKRUTIL}/mnglog/chk_proc_disk_`date +"%Y-%m-%d"`.log
 
 HEADER="=========Date========|===User_Session===|=MB_rd=|==MB_wr=="
 
