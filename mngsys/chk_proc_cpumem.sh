@@ -1,8 +1,9 @@
 #!/bin/bash
 
+export GPKRUTIL="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 source /home/gpadmin/.bash_profile
 DT=`date "+%Y-%m-%d %H:%M:%S"`
-Logfile=/home/gpadmin/logs/chk_process_`date +"%Y-%m-%d"`.log
+Logfile= ${GPKRUTIL}/mnglog/chk_proc_cpumem_`date +"%Y-%m-%d"`.log
 
 HEADER="=========Date========|===Session===|=Pcnt=|==Cpu==|==Mem==|==VSZ==|==RSS=="
 
