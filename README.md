@@ -114,6 +114,7 @@ statlog                     # DB 상태로그 위치
 stattool                    # DB 상태로그를 수집을 위한 스크립트
 temp                        # 아직 반영은 안되었지만, 향후 적용할 스크립트 임시 저장소
 [gpadmin@mdw gpkrutil]$ 
+
 ./crontool:
 cron_dstat_log_load.sh      # 시스템 리소스 sys.20220401.txt. 로그를 DB에 업로드
 cron_kill_idle.sh           # Idle 세션 kill
@@ -143,6 +144,10 @@ sshall.sh                   # ssh를 모든 노드에 수행
 sshkey_copy.sh              # ssh 키를 각 노드에 복사
 sshkey_gen.sh               # ssh 키를 생성 (마스터 노드에만 수행 필요)
 sshseg.sh                   # ssh를 세그먼트 노드에만 수행
+chk_proc_cpumem.sh          # 세션 프로세스의 cpu/memory 사용률 수집(각 노드에서 개별 수행 필요)
+run_proc_cpumem.sh          # chk_proc_cpumem.sh을 중복 수행 체크하여 수행(crontab에 등록하여 사용)
+chk_proc_disk.sh            # 세션 프로세스의 disk 사용률 수집(각 노드에서 개별 수행 필요)
+run_proc_disk.sh            # chk_proc_disk.sh을 중복 수행 체크하여 수행(crontab에 등록하여 사용)
 
 ./stattool:
 dostat                      # 아래의 DB 상태 로깅 스크립트 랩핑
