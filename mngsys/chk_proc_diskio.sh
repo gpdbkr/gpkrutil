@@ -1,4 +1,5 @@
 #!/bin/bash
+
 source /home/gpadmin/.bash_profile
 DT=`date "+%Y-%m-%d %H:%M:%S"`
 Logfile=/home/gpadmin/logs/chk_process_diskio_`date +"%Y-%m-%d"`.log
