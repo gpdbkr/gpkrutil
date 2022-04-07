@@ -131,7 +131,10 @@ vacuum.freeze.template0.sh  # template0 database vacuum full 수행
 vacuum_full_analyze.sh      # 카탈로그 Vacuum Full 수행
 fn_chk_skew.sql             # 데이터 파일을 이용하여 skew 점검하는 함수 소스
 crt_fn_chk_skew.sh          # skew 점검 함수 생성(1회 수행 필요)
-chk_skew.sql                # skew 점검 쿼리(crt_fn_chk_skew.sh 사전 수행 필수)
+chk_skew.sql                # skew 점검(crt_fn_chk_skew.sh 사전 수행 필수)
+chk_age_db.sql              # DB 레벨에서 age 점검
+chk_age_table.sql           # Table 레벨에서 age 점검
+chk_catalog_bloat.sql       # catalog 테이블에 대한 bloat 점검
 
 ./mngsys:
 scpall.sh                   # scp를 모든 노드에 수행 
