@@ -129,6 +129,9 @@ run_sys_rsc.sh              # 모든 노드의 system 리소스 dstat 로깅 (�
 run_reorg_tb.sh             # 특정 테이블 reorg 수행
 vacuum.freeze.template0.sh  # template0 database vacuum full 수행
 vacuum_full_analyze.sh      # 카탈로그 Vacuum Full 수행
+fn_chk_skew.sql             # 데이터 파일을 이용하여 skew 점검하는 함수 소스
+crt_fn_chk_skew.sh          # skew 점검 함수 생성(1회 수행 필요)
+chk_skew.sql                # skew 점검 쿼리(crt_fn_chk_skew.sh 사전 수행 필수)
 
 ./mngsys:
 scpall.sh                   # scp를 모든 노드에 수행 
