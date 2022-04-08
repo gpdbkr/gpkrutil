@@ -24,7 +24,7 @@ select
 		when aa.part_cnt > 1 and substr(replace(aa.pt_end, '''', ''),1,4) < '2022' then '파티션 테이블인데 최소 2022년도까지 파티션 추가'
 		when aa.part_cnt > 1 and aa.default_pt_size_gb >2 then '디폴트 파티션에 데이터 적재되어 파티션 점검 필요'
 		when aa.part_cnt > 1 and length(replace(aa.pt_end, '''', '')) = 6 and aa.pt_avg_size_gb < 1 then '월파티션 테이블을 연파티션 테이블로 변경'
-		else null
+	else null
 	end as recommendation
 from (
 	  select
@@ -34,10 +34,7 @@ from (
 		   , sum(aa_1.size_kb) as tb_size_kb
 		   , round(sum(aa_1.size_kb)/1024.0/1024, 1) as tb_size_gb
 		   , round(avg(aa_1.size_kb)/1024.0/1024, 1) as pt_avg_size_gb
-		   , round(sum( case when aa_1.default_pt_yn = 'Y' then aa_1.size_kb 
-                             else 0 
-                        end
-                      ) /1024.0/1024, 1) as default_pt_size_gb,
+		   , round(sum( case when aa_1.default_pt_yn = 'Y' then aa_1.size_kb else 0   end ) /1024.0/1024, 1) as default_pt_size_gb,
 		min ( case when aa_1.partitionrangestart is null or aa_1.partitionrangestart = '' then 'no_part'
 			       else aa_1.partitionrangestart
 		       end ) pt_start,
