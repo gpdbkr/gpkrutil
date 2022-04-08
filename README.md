@@ -53,7 +53,7 @@ sdw4
 [gpadmin@mdw gpkrutil]$
 
 4) gpkrutil을 위한 table 및 VIEW 생성
-[gpadmin@mdw gpkrutil]$ ./gpkrutil_crt_schema.sh
+[gpadmin@mdw gpkrutil]$ ./gpkrutil_crt_dba_schema.sh
 [gpadmin@mdw gpkrutil]$ cd mnglog
 [gpadmin@mdw mnglog]$ ls -la
 -rw-rw-r--  1 gpadmin gpadmin 13284  3월 30 13:50 gpkrutil_crt_schema.log
