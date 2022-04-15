@@ -1,17 +1,17 @@
 0. Lesson Learned
 - Catalog Vacuum full 소요시간에 영향을 주는 요소는 시스템의 Disk IO 성능이며, 때문에 bloat된 현재 용량 보다 예상 용량의 사이즈가 작업 시간에 영향을 많이 주는것으로 보여짐
 
-1. SamsungElectronics DS
-- CTTTM GPDB / 400GB -> 250 GB / 7시간
-- MIS DAP GPDB / 50GB -> 12GB / 5분
-- IQA GPDB / 0.2GB -> 2GB / 3분
-- LEDTEST GPDB /  160GB -> 5GB / 30분
-- PTECH GPDB / 4GB -> 1GB / 1분
-- PTECH GPDB / 0.2GB -> 1.2GB / 1분
-- OCCAS GPDB(OW) / 601GB -> 1.7GB / 3분
-- MOSMAP (OW) / 60GB -> 36MB / 9분
-- ONEQ GPDB(OW) / 1,400GB -> 13GB / 10분
+1. S사
+- GPDB#1 / 4.x / 16 seg nodes / 400GB -> 250 GB / 7시간
+- GPDB#2 / 4.x / 22 seg nodes / 50GB -> 12GB    / 5분
+- GPDB#3 / 6.x / 12 seg nodes / 0.2GB -> 2GB    / 3분
+- GPDB#4 / 4.x /  4 seg nodes / 160GB -> 5GB    / 30분
+- GPDB#5 / 4.x / 38 seg nodes / 4GB -> 1GB      / 1분
+- GPDB#5 / 6.x /  8 seg nodes / 0.2GB -> 1.2GB  / 1분
+- GPDB#6 / 6.x /  8 seg nodes / 601GB -> 1.7GB  / 3분
+- GPDB#7 / 6.x / 16 seg nodes / 60GB -> 36MB    / 9분
+- GPDB#8 / 6.x / 16 seg nodes / 1,400GB -> 13GB / 10분
 
-2. KT
-- KT / 2276.4GB -> 16.7GB /  20분
-- KT(reindex, 138개) / 2130.5GB -> 6.8GB / 57분
+2. K사
+- GPDB#1 / 2276.4GB -> 16.7GB / 20분
+- GPDB#2 / 2130.5GB -> 6.8GB  / 57분 (reindex, 138개)
