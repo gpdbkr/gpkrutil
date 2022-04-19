@@ -1,5 +1,6 @@
 0. Lesson Learned
 - Catalog Vacuum full 소요시간에 영향을 주는 요소는 시스템의 Disk IO 성능이며, 때문에 bloat된 현재 용량 보다 예상 용량의 사이즈가 작업 시간에 영향을 많이 주는것으로 보여짐
+- Greenplum 6에서는 Vacuum Full 메커니즘 개선되어, 성능 개선 됨.
 
 1. S사
 - GPDB#1 / 4.x / 16 seg nodes / 400GB -> 250 GB / 7시간
