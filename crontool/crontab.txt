@@ -1,4 +1,3 @@
-
 ## system resource logging
 * * * * * /bin/bash /data/gpkrutil/crontool/cron_sys_rsc.sh 5 11 &
 
@@ -19,3 +18,6 @@
 
 ## logging table size
 10 00 * * * /bin/bash /data/gpkrutil/crontool/cron_tb_size.sh
+
+## resource logging of query session and cmd level
+* * * * * /bin/bash /data/gpkrutil/crontool/cron_session_cmd_rsc.sh 2 28 &

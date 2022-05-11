@@ -1,5 +1,8 @@
 create schema dba;
 
+/*****************************************************************
+Upload Greenplum database log (./pg_log/gpdb-yyyy-mm-dd_xxxxxxx.csv)
+******************************************************************/
 CREATE TABLE dba.sql_history
 (
     event_time timestamp without time zone,
@@ -56,6 +59,10 @@ PARTITION BY RANGE(event_time)
     PARTITION p202412 START ('2024-12-01'::timestamp) END ('2025-01-01'::timestamp),
     DEFAULT PARTITION pother
 );
+
+/*****************************************************************
+Logging  table size 
+******************************************************************/
 
 CREATE OR REPLACE VIEW dba.v_tb_pt_size AS
  SELECT a.schemaname AS schema_nm, a.tb_nm, a.tb_pt_nm, a.tb_kb, a.tb_tot_kb
@@ -119,7 +126,9 @@ PARTITION BY RANGE(log_dt)
     DEFAULT PARTITION pother
 );
 
-
+/*****************************************************************
+Upload dstat log (sys.yyyymmdd.txt)
+******************************************************************/
 create table dba.sys_dstat_log_ods (
      HOSTNM varchar
      ,SYS_DAY varchar
@@ -200,6 +209,10 @@ PARTITION BY RANGE(SYS_time)
     PARTITION p202412 START ('2024-12-01'::timestamp) END ('2025-01-01'::timestamp),
     DEFAULT PARTITION pother
 );
+
+/*****************************************************************
+View table SKEW using file size
+******************************************************************/
 
 CREATE OR REPLACE FUNCTION dba.f_crt_view_chk_file_skew() RETURNS text AS
 $$
@@ -284,3 +297,223 @@ $$
 language plpgsql;
 
 SELECT dba.f_crt_view_chk_file_skew();
+
+/*****************************************************************
+View system resources for session's each query command
+******************************************************************/
+--drop external table if exists dba.ext_session_cmd_mem_seg;
+create external web  table dba.ext_session_cmd_mem_seg (
+   hostname varchar(20),
+   log_dttm varchar(20),
+   usr      varchar(63),
+   ssid     varchar(63),
+   sscmd    varchar(63),
+   vsz_mb    numeric,
+   rss_mb    numeric,
+   mem_rate  numeric
+) 
+EXECUTE E'cat /data*/gpkrutil/statlog/session_cmd_mem_*.log' ON all
+FORMAT 'text' (delimiter as '|')
+ENCODING 'utf8'
+SEGMENT REJECT LIMIT 100000;
+
+--drop external table if exists dba.ext_session_cmd_cpu_seg;
+create external web  table dba.ext_session_cmd_cpu_seg (
+   hostname varchar(20),
+   log_dttm varchar(20),
+   usr      varchar(63),
+   ssid     varchar(63),
+   sscmd    varchar(63),
+   cpu_usr    numeric,
+   cpu_sys    numeric,
+   cpu_tot    numeric,
+   slice      int
+) 
+EXECUTE E'cat /data*/gpkrutil/statlog/session_cmd_cpu_*.log' ON all
+FORMAT 'text' (delimiter as '|')
+ENCODING 'utf8'
+SEGMENT REJECT LIMIT 100000;
+
+--drop external table if exists dba.ext_session_cmd_disk_seg;    
+create external web  table dba.ext_session_cmd_disk_seg (
+   hostname varchar(20),
+   log_dttm varchar(20),
+   usr      varchar(63),
+   ssid     varchar(63),
+   sscmd    varchar(63),
+   disk_r_mb    numeric,
+   disk_w_mb    numeric
+) 
+EXECUTE E'cat /data*/gpkrutil/statlog/session_cmd_disk_*.log' ON all
+FORMAT 'text' (delimiter as '|')
+ENCODING 'utf8'
+SEGMENT REJECT LIMIT 100000;
+
+--drop external table if exists dba.ext_session_cmd_mem_master;
+create external web  table dba.ext_session_cmd_mem_master (
+   hostname varchar(20),
+   log_dttm varchar(20),
+   usr      varchar(63),
+   ssid     varchar(63),
+   sscmd    varchar(63),
+   vsz_mb    numeric,
+   rss_mb    numeric,
+   mem_rate  numeric
+) 
+EXECUTE E'cat /data*/gpkrutil/statlog/session_cmd_mem_*.log' ON master
+FORMAT 'text' (delimiter as '|')
+ENCODING 'utf8'
+SEGMENT REJECT LIMIT 100000;
+
+--drop external table if exists dba.ext_session_cmd_cpu_master;
+create external web  table dba.ext_session_cmd_cpu_master (
+   hostname varchar(20),
+   log_dttm varchar(20),
+   usr      varchar(63),
+   ssid     varchar(63),
+   sscmd    varchar(63),
+   cpu_usr    numeric,
+   cpu_sys    numeric,
+   cpu_tot    numeric,
+   slice      int
+) 
+EXECUTE E'cat /data*/gpkrutil/statlog/session_cmd_cpu_*.log' ON master
+FORMAT 'text' (delimiter as '|')
+ENCODING 'utf8'
+SEGMENT REJECT LIMIT 100000;
+
+--drop external table if exists dba.ext_session_cmd_disk_master;    
+create external web  table dba.ext_session_cmd_disk_master (
+   hostname varchar(20),
+   log_dttm varchar(20),
+   usr      varchar(63),
+   ssid     varchar(63),
+   sscmd    varchar(63),
+   disk_r_mb    numeric,
+   disk_w_mb    numeric
+) 
+EXECUTE E'cat /data*/gpkrutil/statlog/session_cmd_disk_*.log' ON master
+FORMAT 'text' (delimiter as '|')
+ENCODING 'utf8'
+SEGMENT REJECT LIMIT 100000;
+
+
+--drop view if exists dba.v_session_cmd_rsc_seg_detail;
+create or replace view dba.v_session_cmd_rsc_seg_detail
+as
+select hostname, to_timestamp(log_dttm, 'yyyy-mm-dd_hh24:mi:ss')::timestamp  log_dttm, usr, ssid, sscmd
+ , sum(cpu_usr) cpu_usr, sum(cpu_sys) cpu_sys, sum(cpu_tot) cpu_tot, max(slice) slice
+ , sum(disk_r_mb) disk_r_mb, sum(disk_w_mb) disk_w_mb
+ , sum(vsz_mb) vsz_mb, sum(rss_mb) rss_mb, sum(mem_rate) mem_rate
+from (
+        SELECT hostname, log_dttm, usr, ssid, sscmd, cpu_usr, cpu_sys, cpu_tot, slice
+                    , 0 disk_r_mb, 0 disk_w_mb, 0 vsz_mb, 0 rss_mb, 0 mem_rate
+        FROM dba.ext_session_cmd_cpu_seg
+        union all
+        SELECT hostname, log_dttm, usr, ssid, sscmd, 0 cpu_usr, 0 cpu_sys, 0 cpu_tot, 0 slice
+                    , disk_r_mb, disk_w_mb, 0 vsz_mb, 0 rss_mb, 0 mem_rate
+        FROM dba.ext_session_cmd_disk_seg
+        union all
+        SELECT hostname, log_dttm, usr, ssid, sscmd, 0 cpu_usr, 0 cpu_sys, 0 cpu_tot, 0 slice
+                    , 0 disk_r_mb, 0 disk_w_mb, vsz_mb, rss_mb, mem_rate
+        FROM dba.ext_session_cmd_mem_seg
+     ) a 
+group by hostname, log_dttm, usr, ssid, sscmd;
+
+
+--drop view if exists dba.v_session_cmd_rsc_master_detail;
+create or replace view dba.v_session_cmd_rsc_master_detail
+as
+select hostname, to_timestamp(log_dttm, 'yyyy-mm-dd_hh24:mi:ss')::timestamp  log_dttm, usr, ssid, sscmd
+ , sum(cpu_usr) cpu_usr, sum(cpu_sys) cpu_sys, sum(cpu_tot) cpu_tot, max(slice) slice
+ , sum(disk_r_mb) disk_r_mb, sum(disk_w_mb) disk_w_mb
+ , sum(vsz_mb) vsz_mb, sum(rss_mb) rss_mb, sum(mem_rate) mem_rate
+from (
+       SELECT hostname, log_dttm, usr, ssid, sscmd, cpu_usr, cpu_sys, cpu_tot, slice
+                   , 0 disk_r_mb, 0 disk_w_mb, 0 vsz_mb, 0 rss_mb, 0 mem_rate
+       FROM dba.ext_session_cmd_cpu_master
+       union all
+       SELECT hostname, log_dttm, usr, ssid, sscmd, 0 cpu_usr, 0 cpu_sys, 0 cpu_tot, 0 slice
+                   , disk_r_mb, disk_w_mb, 0 vsz_mb, 0 rss_mb, 0 mem_rate
+       FROM dba.ext_session_cmd_disk_master
+       union all
+       SELECT hostname, log_dttm, usr, ssid, sscmd, 0 cpu_usr, 0 cpu_sys, 0 cpu_tot, 0 slice
+                   , 0 disk_r_mb, 0 disk_w_mb, vsz_mb, rss_mb, mem_rate
+       FROM dba.ext_session_cmd_mem_master
+     ) a 
+group by hostname, log_dttm, usr, ssid, sscmd;
+
+
+
+--drop view if exists dba.v_session_cmd_rsc_all_detail;
+create or replace view dba.v_session_cmd_rsc_all_detail
+as
+select hostname, to_timestamp(log_dttm, 'yyyy-mm-dd_hh24:mi:ss')::timestamp  log_dttm, usr, ssid, sscmd
+ , sum(cpu_usr) cpu_usr, sum(cpu_sys) cpu_sys, sum(cpu_tot) cpu_tot, max(slice) slice
+ , sum(disk_r_mb) disk_r_mb, sum(disk_w_mb) disk_w_mb
+ , sum(vsz_mb) vsz_mb, sum(rss_mb) rss_mb, sum(mem_rate) mem_rate
+from (
+       SELECT hostname, log_dttm, usr, ssid, sscmd, cpu_usr, cpu_sys, cpu_tot, slice
+                   , 0 disk_r_mb, 0 disk_w_mb, 0 vsz_mb, 0 rss_mb, 0 mem_rate
+       FROM dba.ext_session_cmd_cpu_seg
+       union all
+       SELECT hostname, log_dttm, usr, ssid, sscmd, 0 cpu_usr, 0 cpu_sys, 0 cpu_tot, 0 slice
+                   , disk_r_mb, disk_w_mb, 0 vsz_mb, 0 rss_mb, 0 mem_rate
+       FROM dba.ext_session_cmd_disk_seg
+       union all
+       SELECT hostname, log_dttm, usr, ssid, sscmd, 0 cpu_usr, 0 cpu_sys, 0 cpu_tot, 0 slice
+                   , 0 disk_r_mb, 0 disk_w_mb, vsz_mb, rss_mb, mem_rate
+       FROM dba.ext_session_cmd_mem_seg
+       union all
+       SELECT hostname, log_dttm, usr, ssid, sscmd, cpu_usr, cpu_sys, cpu_tot, slice
+                   , 0 disk_r_mb, 0 disk_w_mb, 0 vsz_mb, 0 rss_mb, 0 mem_rate
+       FROM dba.ext_session_cmd_cpu_master
+       union all
+       SELECT hostname, log_dttm, usr, ssid, sscmd, 0 cpu_usr, 0 cpu_sys, 0 cpu_tot, 0 slice
+                   , disk_r_mb, disk_w_mb, 0 vsz_mb, 0 rss_mb, 0 mem_rate
+       FROM dba.ext_session_cmd_disk_master
+       union all
+       SELECT hostname, log_dttm, usr, ssid, sscmd, 0 cpu_usr, 0 cpu_sys, 0 cpu_tot, 0 slice
+                   , 0 disk_r_mb, 0 disk_w_mb, vsz_mb, rss_mb, mem_rate
+       FROM dba.ext_session_cmd_mem_master
+     ) a 
+group by hostname, log_dttm, usr, ssid, sscmd;
+
+
+--drop view if exists dba.v_session_cmd_rsc_sum;
+create or replace view dba.v_session_cmd_rsc_sum
+as
+select  usr
+      , ssid
+      , sscmd 
+      , replace(sscmd, 'cmd', '')::int ord
+      , to_timestamp(min(log_dttm), 'yyyy-mm-dd_hh24:mi:ss')::timestamp start_dttm
+      , to_timestamp(max(log_dttm), 'yyyy-mm-dd_hh24:mi:ss')::timestamp end_dttm
+      , to_timestamp(max(log_dttm), 'yyyy-mm-dd_hh24:mi:ss') - to_timestamp(min(log_dttm), 'yyyy-mm-dd_hh24:mi:ss') duration
+      , max(slice) slice
+      , round(avg(cpu_usr)) avg_cpu_usr, round(avg(cpu_sys)) avg_cpu_sys, round(avg(cpu_tot)) avg_cpu_tot
+      , round(sum(disk_r_mb)) sum_disk_r_mb, round(sum(disk_w_mb)) sum_disk_w_mb
+      , round(max(vsz_mb)) max_vsz_mb, round(max(rss_mb)) max_rss_mb, round(max(mem_rate)) max_mem_rate
+from  (
+ select hostname, log_dttm, usr, ssid, sscmd
+  , sum(cpu_usr) cpu_usr, sum(cpu_sys) cpu_sys, sum(cpu_tot) cpu_tot, max(slice) slice
+  , sum(disk_r_mb) disk_r_mb, sum(disk_w_mb) disk_w_mb
+  , sum(vsz_mb) vsz_mb, sum(rss_mb) rss_mb, sum(mem_rate) mem_rate
+ from (
+         SELECT hostname, log_dttm, usr, ssid, sscmd, cpu_usr, cpu_sys, cpu_tot, slice
+                     , 0 disk_r_mb, 0 disk_w_mb, 0 vsz_mb, 0 rss_mb, 0 mem_rate
+         FROM dba.ext_session_cmd_cpu_seg
+         union all
+         SELECT hostname, log_dttm, usr, ssid, sscmd, 0 cpu_usr, 0 cpu_sys, 0 cpu_tot, 0 slice
+                     , disk_r_mb, disk_w_mb, 0 vsz_mb, 0 rss_mb, 0 mem_rate
+         FROM dba.ext_session_cmd_disk_seg
+         union all
+         SELECT hostname, log_dttm, usr, ssid, sscmd, 0 cpu_usr, 0 cpu_sys, 0 cpu_tot, 0 slice
+                     , 0 disk_r_mb, 0 disk_w_mb, vsz_mb, rss_mb, mem_rate
+         FROM dba.ext_session_cmd_mem_seg
+      ) a 
+ group by hostname, log_dttm, usr, ssid, sscmd
+   ) b 
+group by 1,2,3,4
+;
+

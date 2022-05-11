@@ -23,7 +23,7 @@ alias tails='ls  ${GPKRUTIL}/statlog/sys.202*.txt | tail -1 | xargs tail -f'
 ####### DB session 
 ###########################
 alias qq='psql -c " SELECT datname, now()-query_start as duration_time, usename, client_addr, waiting, pid, sess_id, rsgname from pg_stat_activity WHERE state not like '\''%idle%'\'' ORDER BY waiting, duration_time desc;"'   ##active session
-alias qqit='psql  -c "SELECT datname, substring(backend_start,1,19) as backend_time, now()-query_start as duration_time, usename, client_addr, waiting, waiting_reason, pid, sess_id, rsgname, substring(query,1,60) FROM pg_stat_activity as query_string WHERE state <> '\''idle'\'' ORDER BY waiting, duration_time desc;"'    ## active session with query
+alias qqit='psql  -c "SELECT datname, substring(backend_start::text,1,19) as backend_time, now()-query_start as duration_time, usename, client_addr, waiting, waiting_reason, pid, sess_id, rsgname, substring(query,1,60) FROM pg_stat_activity as query_string WHERE state <> '\''idle'\'' ORDER BY waiting, duration_time desc;"'    ## active session with query
 alias cq='psql -c "SELECT now()-query_start, pid, usename, sess_id, query from pg_stat_activity where state not like '\''%idle%'\'' order by 1 desc;"'        ## current query
 alias is='psql -c " SELECT now()-query_start, usename, pid, sess_id, query from pg_stat_activity where state like '\''idle'\'' order by 1 desc;"'             ## idle session
 alias it='psql  -c "SELECT now()-query_start, usename, pid, sess_id, query FROM pg_stat_activity where trim(query) like '\''%in transaction'\'' ORDER BY 1 DESC;"'  ## idle in transaction
