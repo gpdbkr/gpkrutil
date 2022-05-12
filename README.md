@@ -139,6 +139,8 @@ chk_skew.sql                # skew 점검(crt_fn_chk_skew.sh 사전 수행 필�
 chk_age_db.sql              # DB 레벨에서 age 점검
 chk_age_table.sql           # Table 레벨에서 age 점검
 chk_catalog_bloat.sql       # catalog 테이블에 대한 bloat 점검
+chk_partition.sql           # 파티션 관리 점검
+get_sys_stat.sql            # gpcc의 시스템 리소스 현황으로 부터, 시스템 사용량 추출
 
 ./mngsys:
 scpall.sh                   # scp를 모든 노드에 수행 
@@ -147,10 +149,8 @@ sshall.sh                   # ssh를 모든 노드에 수행
 sshkey_copy.sh              # ssh 키를 각 노드에 복사
 sshkey_gen.sh               # ssh 키를 생성 (마스터 노드에만 수행 필요)
 sshseg.sh                   # ssh를 세그먼트 노드에만 수행
-chk_proc_cpumem.sh          # 세션 프로세스의 cpu/memory 사용률 수집(각 노드에서 개별 수행 필요)
-run_proc_cpumem.sh          # chk_proc_cpumem.sh을 중복 수행 체크하여 수행(crontab에 등록하여 사용)
-chk_proc_disk.sh            # 세션 프로세스의 disk 사용률 수집(각 노드에서 개별 수행 필요)
-run_proc_disk.sh            # chk_proc_disk.sh을 중복 수행 체크하여 수행(crontab에 등록하여 사용)
+run_proc_cpumem.sh          # 세션 프로세스의 cpu/memory 사용률 수집(각 노드에서 개별 수행 필요, 필요시 crontab에 등록하여 사용)
+run_proc_disk.sh            # 세션 프로세스의 disk 사용률 수집(각 노드에서 개별 수행 필요, 필요시 crontab에 등록하여 사용)
 
 ./stattool:
 dostat                      # 아래의 DB 상태 로깅 스크립트 랩핑
