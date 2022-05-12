@@ -15,7 +15,8 @@
 backupconf                  # 설정파일 백업    
 cronlog                     # crontool 로그 위치
 crontool                    # crontab으로 수행되는 스크립트 위치
-gpkrutil_crt_schema.sh      # gpkrutil을 이용시 필요한 테이블 및 VIEW DDL
+gpkrutil_crt_dba_schema.sh  # gpkrutil을 이용시 필요한 테이블 및 VIEW DDL 실행 쉘
+gpkrutil_crt_dba_schema.sql # gpkrutil을 이용시 필요한 테이블 및 VIEW DDL SQL
 gpkrutil_path.sh            # gpkrutil path 및 DB 운영을 위한 alias 모음
 hostfile_all                # Greenplum 마스터 및 데이터 노드 호스트명
 hostfile_seg                # Greenplum 데이터 노드 호스트명
@@ -56,7 +57,7 @@ sdw4
 [gpadmin@mdw gpkrutil]$ ./gpkrutil_crt_dba_schema.sh
 [gpadmin@mdw gpkrutil]$ cd mnglog
 [gpadmin@mdw mnglog]$ ls -la
--rw-rw-r--  1 gpadmin gpadmin 13284  3월 30 13:50 gpkrutil_crt_schema.log
+-rw-rw-r--  1 gpadmin gpadmin 13284  3월 30 13:50 gpkrutil_crt_dba_schema.log
 [gpadmin@mdw mnglog]$ grep  ERROR *.log
 
 5) Crontab 설정
@@ -101,7 +102,8 @@ killed_idle.20220401.log
 backupconf                  # 설정파일 백업    
 cronlog                     # crontool 로그 위치
 crontool                    # crontab으로 수행되는 스크립트 위치
-gpkrutil_crt_schema.sh      # gpkrutil을 이용시 필요한 테이블 및 VIEW DDL
+gpkrutil_crt_dba_schema.sh  # gpkrutil을 이용시 필요한 테이블 및 VIEW DDL 실행 쉘
+gpkrutil_crt_dba_schema.sql # gpkrutil을 이용시 필요한 테이블 및 VIEW DDL SQL
 gpkrutil_path.sh            # gpkrutil path 및 DB 운영을 위한 alias 모음
 hostfile_all                # Greenplum 마스터 및 데이터 노드 호스트명
 hostfile_seg                # Greenplum 데이터 노드 호스트명
@@ -120,6 +122,7 @@ cron_dstat_log_load.sh      # 시스템 리소스 sys.20220401.txt. 로그를 DB
 cron_kill_idle.sh           # Idle 세션 kill
 cron_log_load.sh            # DB log를 DB에 적재
 cron_pghba_sync_backup.sh   # pg_hba.conf, postgresql.conf 백업 및 스탠바이 마스터에 sync
+cron_session_cmd_rsc.sh     # 세션의 쿼리 commnad 별 리소스 gathering, (마스터 및 각 세그먼트에 적용 필요)  
 cron_sys_rsc.sh             # dstat 로그 크론 등록
 cron_tb_size.sh             # 테이블/파티션별 사이즈를 DB에 적재 
 cron_vacuum_analyze.sh      # 카탈로그 테이블 vacuum 수행
@@ -151,6 +154,7 @@ run_proc_disk.sh            # chk_proc_disk.sh을 중복 수행 체크하여 수
 
 ./stattool:
 dostat                      # 아래의 DB 상태 로깅 스크립트 랩핑
+get_qq_active_ss_cnt.sh     # statlog의 qq로그로 부터, 액티브 세션 
 lt.sh                       # 락 발생 테이블 로깅
 qq.sh                       # 활성 세션 로그
 qqit.sh                     # 활성 세션 로그 및 쿼리 일부 로깅
