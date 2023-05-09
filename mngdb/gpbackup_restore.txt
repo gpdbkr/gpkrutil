@@ -1,0 +1,82 @@
+1. 백업 
+1.1 Full Backup 
+$ gpbackup --dbname edu --backup-dir /data/dbbackup/ --leaf-partition-data --with-stats --jobs 2 --verbose 1>&2
+백업 Timestamp: 20230509114630, duration: 0:00:27, DB size: 2138 MB, backup size: 1GB
+
+1.2 incremental backup
+$ gpbackup --dbname edu --backup-dir /data/dbbackup/ --leaf-partition-data --with-stats --jobs 2 --incremental --verbose 1>&2
+백업 Timestamp: 20230509114803, duration: 0:00:02, DB size: 2138 MB, backup size: 18MB
+
+
+2. 복구 
+2.1 role, resource queue/group, database 복구 - Database 재설치시 복구 (주의 사항: instance 구성이 기존과 동일해야 함) 
+2.1.0 테스트 시나리오
+- DB 재설치 이후 backup본으로 부터 DB 복구(role, resource queue/group 까지 복구)
+2.1.1 Full backup에서 Database 복구        (role, resource queue/group, database 복구)     ==> OK
+$ gprestore --timestamp 20230509114630 --backup-dir /data/dbbackup/ --create-db  --with-stats --with-globals --jobs 2 --verbose
+
+2.1.2 incremental backup에서 Database 복구 (role, resource queue/group, database 복구)     ==> OK
+$ gprestore --timestamp 20230509114803 --backup-dir /data/dbbackup/ --create-db  --with-stats --with-globals --jobs 2 --verbose
+
+
+2.2 Database만 복구 
+2.2.0 테스트 시나리오
+- database drop 후 database만 복구
+
+2.2.1 Full backup에서 Database 복구 (database만 복구)                                      ==> OK
+$ gprestore --timestamp 20230509114630 --backup-dir /data/dbbackup/ --create-db  --with-stats  --jobs 2 --verbose
+
+2.2.1 incremental 에서 Database 복구 (database만 복구)                                     ==> OK
+$ gprestore --timestamp 20230509114803 --backup-dir /data/dbbackup/ --create-db  --with-stats  --jobs 2 --verbose
+
+
+2.3 특정 테이블만 복구 (파티션 포함, DDL 포함)
+2.3.0 테스트 시나리오
+- 파티션이 포함된 테이블 drop 이후 해당 테이블만 복구
+
+2.3.1 Full backup에서 특정 테이블만 복구 (DDL 포함, 파티션 포함)                                 ==> OK
+$ gprestore --timestamp 20230509114630 --backup-dir /data/dbbackup/ --include-table edu_sch.orders  --with-stats --jobs 2 --verbose 1>&2 
+
+2.3.2 incremental backup에서 특정 테이블만 복구 (DDL 포함, 파티션 포함)                          ==> OK
+$ gprestore --timestamp 20230509114803 --backup-dir /data/dbbackup/ --include-table edu_sch.orders  --with-stats --jobs 2 --verbose 1>&2 
+
+2.4 특정 파티션만 복구 
+2.4.0 테스트 시나리오
+- 특정 파티션 truncate 이후 특정 파티션 데이터 복구
+
+2.4.1 Full backup에서 특정 파티션만 복구                                                     ==> OK
+gprestore --timestamp 20230509114630 --backup-dir /data/dbbackup/ --include-table edu_sch.orders_1_prt_p1999  --data-only --verbose 1>&2 
+
+2.4.2 incremental backup에서 특정 파티션만 복구                                              ==> OK
+gprestore --timestamp 20230509114803 --backup-dir /data/dbbackup/ --include-table edu_sch.orders_1_prt_p1999  --data-only  --verbose 1>&2 
+
+
+3. 새로운 database로 복구
+3.1 새로운 DB에서의 복구
+3.1.0 테스트 시나리오
+- 새로운 DB생성 후 새로 생성된 database에 복구 
+
+3.1.1 Full backup에서 Database 복구 (database만 복구)                                      ==> OK
+$ gprestore --timestamp 20230509114630 --backup-dir /data/dbbackup/ --redirect-db newedu --with-stats  --jobs 2 --verbose
+
+3.1.1 incremental 에서 Database 복구 (database만 복구)                                     ==> OK
+$ gprestore --timestamp 20230509114803 --backup-dir /data/dbbackup/ --redirect-db newedu --with-stats  --jobs 2 --verbose
+
+4. 기존 database에서 새로운 스키마에 테이블 복구
+4.1 기존 database에서 새로운 스키마에 테이블 복구
+4.1.0 테스트 시나리오
+- 스키마 새로 생성 한 후 생성된 스키마의 테이블에 복구
+- edu_new 스키마 생성, 원본은 edu_sch.orders 이지만, edu_new.orders에 복구 
+4.1.1 Full backup에서 특정 테이블만 복구 (DDL 포함, 파티션 포함), (테이블을 별도 생성하지 않음)        ==> OK
+$ gprestore --timestamp 20230509114630 --backup-dir /data/dbbackup/ --include-table edu_sch.orders   --redirect-schema edu_new --jobs 2 --verbose 1>&2 
+
+4.1.2 incremental backup에서 특정 테이블만 복구 (DDL 포함, 파티션 포함), (테이블을 별도 생성하지 않음) ==> OK
+$ gprestore --timestamp 20230509114803 --backup-dir /data/dbbackup/ --include-table edu_sch.orders   --redirect-schema edu_new --jobs 2 --verbose 1>&2 
+
+
+5. 기타 공유 사항
+5.1 새로운 DB에 새로운 스키마에 복구시 에러 발생, 즉 --redirect-schema와 --redirect-db 혼횽해서 사용할 수는 없음.
+5.2 데이터 복구시 분산키 위치가 맞지 않다고 에러 떨어지는 경우에는 randomly로 테이블 생성 후 적재
+    - 에러 메시지 유형: ERROR: value of distribution key doesn't belong to segment with ID 0, it belongs to segment with ID 3 
+
+

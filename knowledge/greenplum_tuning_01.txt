@@ -54,13 +54,17 @@ Greenplum 튜닝시 고려 사항
        => 테이블 A, B 조인시, 서브 쿼리에서 미리 Group by 해서 row 수를 줄인 다음 조인 수행
        => TEMP 테이블 생성시 * 대신 필요한 컬럼만 사용
 
+      - With 절
+
+
+      - 
   2) 쿼리 플래너 적용 규칙
      - Legacy planner, set optimizer=off;
        => Short 쿼리 및 최적화된 쿼리 
        => 인덱스를 많이 사용할 때
        => Left Outer / Full Joins 조인이 많을 경우
        => Rollups/Cubes 사용시
-     => text columns에 많은 비교가 발생하는 경우
+       => text columns에 많은 비교가 발생하는 경우
 
      - GPORCA planner, set optimizer=on; 
        => Correlated Queries 사용시
