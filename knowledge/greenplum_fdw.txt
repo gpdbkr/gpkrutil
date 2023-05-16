@@ -1,7 +1,7 @@
 0. Greenplum FDW
  - Greenplum 클러스터간의 쿼리 실행할 수 있는 Foreign data wrapper(외부 데이터 래퍼)
- - Greenplum 클러스터 #1에서 Greenplum 클러스터 #2의 데이터를 insert하거나, 쿼리를 수행할 수 있음.
- - FOREIGN TABLE 형태로 사용.
+ - Local Greenplum에서 Remote Greenplum 의 인스턴스 차이가 나더라도 병렬처리 지원
+ - 외부 테이블에 대해서 조회 기능 제공
  - pushdown 기능 제공: 원격지의 테이블을 조회할 경우, index/파티션 수행후 결과 리턴 
    => 리모트의 테이블 전체를 가져오는 것이 아니라, 필요한 부분만 필터링해서 가져옴.
 
