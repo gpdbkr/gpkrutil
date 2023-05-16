@@ -9,12 +9,14 @@
 1.1 Remote
  - OS: CentOS Linux release 7.9.2009
  - Greenplum: 6.21.0
- - 4 Primary segemnt instance 
+ - 4 segment VM
+ - 4 Primary segment instance 
 
 1.2 Local
  - OS: Rocky Linux release 8.7 
  - Greenplum: 6.23.0
- - 2 Primary segemnt instance
+ - 1 segment VM
+ - 2 Primary segment instance
 
 2. 사전 준비
 2.1 remote 서버
