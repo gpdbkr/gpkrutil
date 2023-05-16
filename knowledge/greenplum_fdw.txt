@@ -1,0 +1,154 @@
+0.Greenplum FDW
+ - Greenplum 클러스터간의 쿼리 실행할 수 있는 Foreign data wrapper(외부 데이터 래퍼)
+ - Greenplum 클러스터 #1에서 Greenplum 클러스터 #2의 데이터를 insert하거나, 쿼리를 수행할 수 있음.
+ - FOREIGN TABLE 형태로 사용 함.
+
+1. 환경 
+1.1 Remote
+ - OS: CentOS Linux release 7.9.2009
+ - Greenplum: 6.21.0
+ - 4 Primary segemnt instance 
+
+1.2 Local
+ - OS: Rocky Linux release 8.7 
+ - Greenplum: 6.23.0
+ - 2 Primary segemnt instance
+
+2. 사전 준비
+2.1 remote 서버
+ -  Local 서버의 mdw/smdw/vip IP 등록
+[gpadmin@mdw ~]$ vi $MASTER_DATA_DIRECTORY/pg_hba.conf
+host    all          all             172.16.65.90/32        md5
+
+2.2 local 서버
+ - local 서버에서 remote 서버로 접속하기 때문에, local 서버에서 remote 서버 접속이 가능해야 함.
+ - local 서버에서 remote 서버로 접속할 때에는 remote 서버의 hostname을 참고 함. 
+ - gp_segment_configuration의 hostname 찾음.
+ - local 서버에 /etc/hosts에 remote 서버 리스트가 포함 되어야 함.
+ - ex) 
+
+[gpadmin@r8g6single ~]$ cat /etc/hosts
+# local server
+172.16.65.90 r8g6single
+
+# remote server 
+172.16.65.141 c7g6mdw
+172.16.65.141 c7g6sdw1
+172.16.65.142 c7g6sdw2
+172.16.65.143 c7g6sdw3
+172.16.65.144 c7g6sdw4 
+
+
+3. Greenplum_pdw 셋업
+3.1 Source / Remote
+CREATE EXTENSION IF NOT EXISTS gp_parallel_retrieve_cursor;
+
+
+3.2  Target / Local
+CREATE EXTENSION greenplum_fdw;
+CREATE EXTENSION IF NOT EXISTS gp_parallel_retrieve_cursor;
+
+--Options 옆에 -- 와 같은 주석 처리하면 안됨.
+CREATE SERVER gp_remote_edu
+       FOREIGN DATA WRAPPER greenplum_fdw 
+       OPTIONS (host '172.16.65.140',            
+                port '5432',      
+                dbname 'edu',                     
+                mpp_execute 'all segments', 
+                num_segments '4');
+
+CREATE USER MAPPING FOR udba 
+       SERVER gp_remote_edu 
+       OPTIONS (user 'udba', password 'changeme');
+
+CREATE USER MAPPING FOR gpadmin 
+       SERVER gp_remote_edu 
+       OPTIONS (user 'gpadmin', password 'changeme');
+
+DROP FOREIGN TABLE remote.lineitem;
+CREATE FOREIGN TABLE remote.lineitem (
+    l_orderkey bigint NOT NULL,
+    l_partkey integer NOT NULL,
+    l_suppkey integer NOT NULL,
+    l_linenumber integer NOT NULL,
+    l_quantity numeric(15,2) NOT NULL,
+    l_extendedprice numeric(15,2) NOT NULL,
+    l_discount numeric(15,2) NOT NULL,
+    l_tax numeric(15,2) NOT NULL,
+    l_returnflag character(1) NOT NULL,
+    l_linestatus character(1) NOT NULL,
+    l_shipdate date NOT NULL,
+    l_commitdate date NOT NULL,
+    l_receiptdate date NOT NULL,
+    l_shipinstruct character(25) NOT NULL,
+    l_shipmode character(10) NOT NULL,
+    l_comment character varying(44) NOT NULL
+)
+SERVER gp_remote_edu 
+OPTIONS (schema_name 'edu_sch', table_name 'lineitem'); 
+
+select * from remote.lineitem limit 10;
+
+
+4. 쿼리 테스트
+4.1 remote 서버에서 쿼리 수행 (4vm, 4 primary segment)
+edu=# select count(*) from edu_sch.lineitem where l_shipdate >= '19990101' and l_shipdate <'19990131';
+ count
+-------
+  8894
+(1 row)
+
+Time: 103.797 ms
+edu=#
+
+4.2 local서버에서 remote 데이터 쿼리 수행
+- remote : 4 segment vms, 4 primary instances
+- local  : 1 segment vms, 2 primary instances
+gpadmin=# select count(*) from remote.lineitem where l_shipdate >= '19990101' and l_shipdate <'19990131';
+ count
+-------
+  8894
+(1 row)
+
+Time: 350.271 ms
+gpadmin=#
+
+5. 규모 있는 장비에서 테스트한 결과
+5.1 테스트 환경 
+- Greenplum #1 : Master: 2VMs, Segment:   4VMs, 8 primay instance/VM, total primary:    32
+- Greenplum #2 : Master: 2VMs, Segment: 3~4VMs, 8 primay instance/VM, total primary: 24~32
+
+5.1 테스트 테이블
+ - LOG 테이블   : 압축6.6GB, 비압축  12GB, 데이터 직렬화(array data)
+ - MASTER 테이블: 압축 42MB, 비압축 294MB, row model 데이터
+
+ 5.2 테스트 결과  
+=============================================================================================
+                시나리오                       | Remote  Local  | Remote Local | Remote Local |
+                                             | 4 VMs 4 VMs    | 4 VMs 3 VMs  | 3 VMs 4 VMs  |
+=============================================================================================
+1.테이블데이터복사	  | LOG 테이블                  |      81       |    96	      |     69	    |
+INSERT INTO LOCAL ---------------------------------------------------------------------------
+SELECT REMOTE     | Master 테이블               |     1.4	       |     1.1.     |     1.4	    |
+=============================================================================================
+2.테이블조인         |            테이블 위치	 | 1차측정   2차측정 | 1차측정	2차측정 | 1차측정 2차측정|
+                   --------------------------------------------------------------------------
+                   | Remote     | Local      |     					                        |
+                   --------------------------------------------------------------------------                
+                   |            | LOG+MASER  |   20	   19	  |  20	     20  |   19	 18     |
+                   --------------------------------------------------------------------------		        
+                   |   LOG      | MASTER	 |   86      87   |  105    102  |   81    80   |
+                   --------------------------------------------------------------------------                
+                   |   MASTER   | LOG 	     |   16      16   |  16      16  |   20    17   |
+                   --------------------------------------------------------------------------                
+                   | LOG+MASTER |            |   78      78   |  102    102  |   77    79   |
+=============================================================================================
+
+
+
+
+
+
+
+
+
