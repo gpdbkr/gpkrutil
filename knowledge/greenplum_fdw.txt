@@ -5,7 +5,7 @@
  - pushdown 기능 제공: 원격지의 테이블을 조회할 경우, index/파티션 수행후 결과 리턴 
    => 리모트의 테이블 전체를 가져오는 것이 아니라, 필요한 부분만 필터링해서 가져옴.
 
-1. 환경 
+1. 테스트 환경 
 1.1 Remote
  - OS: CentOS Linux release 7.9.2009
  - Greenplum: 6.21.0
@@ -98,7 +98,7 @@ select * from remote.lineitem limit 10;
 
 
 4. 쿼리 테스트
-4.1 remote 서버에서 쿼리 수행 (4vm, 4 primary segment)
+4.1 remote 서버에서 internal table 쿼리 수행 (4vm, 4 primary segment)
 edu=# select count(*) from edu_sch.lineitem where l_shipdate >= '19990101' and l_shipdate <'19990131';
  count
 -------
@@ -108,7 +108,7 @@ edu=# select count(*) from edu_sch.lineitem where l_shipdate >= '19990101' and l
 Time: 103.797 ms
 edu=#
 
-4.2 local서버에서 remote 데이터 쿼리 수행
+4.2 local서버에서 remote 테이블에 쿼리 수행
 - remote : 4 segment vms, 4 primary instances
 - local  : 1 segment vms, 2 primary instances
 ## pushdown 기능제공,리모트  테이블에서는 파티션이 포함되어 있음.
