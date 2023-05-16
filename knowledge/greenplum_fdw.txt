@@ -1,7 +1,9 @@
-0.Greenplum FDW
+0. Greenplum FDW
  - Greenplum 클러스터간의 쿼리 실행할 수 있는 Foreign data wrapper(외부 데이터 래퍼)
  - Greenplum 클러스터 #1에서 Greenplum 클러스터 #2의 데이터를 insert하거나, 쿼리를 수행할 수 있음.
- - FOREIGN TABLE 형태로 사용 함.
+ - FOREIGN TABLE 형태로 사용.
+ - pushdown 기능 제공: 원격지의 테이블을 조회할 경우, index/파티션 수행후 결과 리턴 
+   => 리모트의 테이블 전체를 가져오는 것이 아니라, 필요한 부분만 필터링해서 가져옴.
 
 1. 환경 
 1.1 Remote
@@ -40,15 +42,19 @@ host    all          all             172.16.65.90/32        md5
 
 
 3. Greenplum_pdw 셋업
-3.1 Source / Remote
+3.1 Remote
 CREATE EXTENSION IF NOT EXISTS gp_parallel_retrieve_cursor;
 
 
-3.2  Target / Local
+3.2 Local
 CREATE EXTENSION greenplum_fdw;
 CREATE EXTENSION IF NOT EXISTS gp_parallel_retrieve_cursor;
 
 --Options 옆에 -- 와 같은 주석 처리하면 안됨.
+--클러스터간의 병렬 연동을 위해서는 2가지 옵션을 적용해야 함.
+1) mpp_execute 'all segments' --병렬로 처리하기 위한 옵션
+2) num_segments '4'  --원격지의 세그먼트 개수, default 값은 원격지 세그먼트 인스턴스 수,
+
 CREATE SERVER gp_remote_edu
        FOREIGN DATA WRAPPER greenplum_fdw 
        OPTIONS (host '172.16.65.140',            
@@ -87,6 +93,7 @@ CREATE FOREIGN TABLE remote.lineitem (
 SERVER gp_remote_edu 
 OPTIONS (schema_name 'edu_sch', table_name 'lineitem'); 
 
+--test
 select * from remote.lineitem limit 10;
 
 
@@ -104,6 +111,7 @@ edu=#
 4.2 local서버에서 remote 데이터 쿼리 수행
 - remote : 4 segment vms, 4 primary instances
 - local  : 1 segment vms, 2 primary instances
+## pushdown 기능제공,리모트  테이블에서는 파티션이 포함되어 있음.
 gpadmin=# select count(*) from remote.lineitem where l_shipdate >= '19990101' and l_shipdate <'19990131';
  count
 -------
