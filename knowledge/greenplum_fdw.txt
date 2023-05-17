@@ -133,6 +133,7 @@ gpadmin=#
  - MASTER 테이블: 압축 42MB, 비압축 294MB, row model 데이터
 
  5.2 테스트 결과  
+                                                                                   단위(초)
 =============================================================================================
                 시나리오                      | Remote  Local  | Remote Local  | Remote Local |
                                             | 4 VMs 4 VMs    | 4 VMs 3 VMs   | 3 VMs 4 VMs  |
