@@ -1,0 +1,100 @@
+1. python 3.9 지원
+ - Greenplum 6.22.0 부터 지원
+ - Greenplum RPM 설치하면 기본적으로 $GPHOME/ext/python3.9 폴더가 생성됨
+ - DataScience package를 설치하지 않아도 기본적인 plpythonu/plpython3u 사용 가능
+ - 추가적인 분석 패키지가 필요한 경우 DataScience package 활용 가능
+
+2. python 2.7과 3.9 동시 사용 제한사항
+ - plpythonu(v2.7)와 plpython3u(v3.9) extension은 DB에 동시에 생성 가능
+ - plpythonu로 생성된 함수와 plpython3u로 생성된 함수를 단일 세션에서 동시에 사용할 수 없음
+ - 세션이 독립적인 경우는 다른 버전의 python을 사용한 함수라도 정상적으로 사용 가능
+
+ 2-1. PL/Python Limitations
+  - Within a single Greenplum session, all PL/Python functions must be called using either plpythonu or plpython3u. You must start a new session before you can call a function created with different PL/Python version (for example, in order to call a plpythonu function after calling a plpython3u function, or vice versa). (https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/analytics-pl_python.html)
+  - 제한사항 우회방안(비공식) : https://groups.google.com/a/greenplum.org/g/gpdb-dev/c/ji7j8ZvFmQk?pli=1
+
+3. plpython 제한사항 테스트 결과
+3-1. 테스트 환경 및 gppkg 설치 현황 확인
+  - Greenplum 6.23.1에 plr, pljava, madlib만 설치된 환경
+[gpadmin@testgm1 dba]$ gpstate --version
+gpstate version 6.23.1 build commit:2731a45ecb364317207c560730cf9e2cbf17d7e4
+[gpadmin@testgm1 dba]$ gppkg -q --all
+20230519:14:51:23:008884 gppkg:testgm1:gpadmin-[INFO]:-Starting gppkg with args: -q --all
+pljava-2.0.4
+plr-3.0.4
+madlib-1.20.0+1
+
+  - $GPHOME/ext 경로에 python, python3.9 폴더가 생성된 것을 확인
+[gpadmin@testgm1 dba]$ ls -al /usr/local/greenplum-db/ext/
+total 0
+drwxr-xr-x  5 gpadmin gpadmin  52 May 19 13:43 .
+drwxr-xr-x 14 gpadmin gpadmin 336 May 19 13:43 ..
+drwxr-xr-x  6 gpadmin gpadmin  56 May 19 12:12 python
+drwxr-xr-x  6 gpadmin gpadmin  56 May 19 12:12 python3.9
+drwxr-xr-x 11 gpadmin gpadmin 157 May 19 12:27 R-3.3.3
+
+3-2. plpython3u extension 설치 및 extension 목록 확인
+[gpadmin@testgm1 dba]$ psql -c "create extension plpython3u;"
+CREATE EXTENSION
+[gpadmin@testgm1 dba]$ psql -c "select * from pg_extension;"
+  extname   | extowner | extnamespace | extrelocatable | extversion | extconfig | extcondition
+------------+----------+--------------+----------------+------------+-----------+--------------
+ plpgsql    |       10 |           11 | f              | 1.0        |           |
+ pljava     |       10 |        16389 | t              | 1.5.0      |           |
+ plr        |       10 |        16389 | t              | 8.3.0.16   |           |
+ plpython3u |       10 |           11 | f              | 1.0        |           |
+(4 rows)
+
+3-3. python 버전을 확인 할 수 있는 함수를 각 버전별로 생성
+[gpadmin@testgm1 dba]$ cat p2.sql
+CREATE OR REPLACE FUNCTION python2version ()
+       RETURNS text
+AS $$
+       import sys
+       return sys.version
+$$ LANGUAGE plpythonu;
+[gpadmin@testgm1 dba]$ cat p3.sql
+CREATE OR REPLACE FUNCTION python3version ()
+       RETURNS text
+AS $$
+       import sys
+       return sys.version
+$$ LANGUAGE plpython3u;
+
+3-4. python3version(), python2version() 함수를 독립된 세션에서 각각 수행
+  - 함수가 정상적으로 수행되어 각 python 버전 확인 가능함
+[gpadmin@testgm1 dba]$ psql -c "select python3version();"
+            python3version
+---------------------------------------
+ 3.9.13 (main, Sep 16 2022, 04:04:44) +
+ [GCC 6.4.0]
+(1 row)
+
+[gpadmin@testgm1 dba]$ psql -c "select python2version();"
+              python2version
+------------------------------------------
+ 2.7.18 (default, Nov 19 2022, 02:45:41) +
+ [GCC 6.4.0]
+(1 row)
+
+3-5. python3version(), python2version() 함수를 단일 세션에서 순차적 수행
+  - 첫번째 수행한 함수는 정상 수행 되지만, 두번째 함수는 에러 메시지와 함께 오류 발생
+[gpadmin@testgm1 dba]$ psql
+psql (9.4.26)
+Type "help" for help.
+
+gpadmin=# select python3version();
+            python3version
+---------------------------------------
+ 3.9.13 (main, Sep 16 2022, 04:04:44) +
+ [GCC 6.4.0]
+(1 row)
+
+gpadmin=# select python2version();
+FATAL:  multiple Python libraries are present in session (plpy_main.c:194)
+DETAIL:  Only one Python major version can be used in one session.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+The connection to the server was lost. Attempting reset: Succeeded.
+gpadmin=# \q
