@@ -74,3 +74,8 @@ alias pxfstop='/usr/local/greenplum-db/pxf/bin/pxf cluster stop'
 alias pxfsync='/usr/local/greenplum-db/pxf/bin/pxf cluster sync'
 alias pxfinit='/usr/local/greenplum-db/pxf/bin/pxf cluster init'
 alias pxfreset='/usr/local/greenplum-db/pxf/bin/pxf cluster reset'
+
+############################
+######## ipcclean
+###########################
+alias ipcclean='ipcs -s | grep gpadmin | awk '\''{print "ipcrm -s " $2}'\'' | sh; ipcs -m | grep gpadmin | awk '\''{print "ipcrm -m " $2}'\'' | sh'
