@@ -1,0 +1,69 @@
+(1) Datascience python package 설치 순서에 따른 폴더 미생성 이슈에 대한 SR진행(355225)
+- 이슈 : DS python 2.7 -> 3.9 설치하는 경우 3.9 버전의 폴더가 미생성되는 이슈
+- SR결과 : R&D에서 해당 이슈는 gppkg 유틸리티 이슈로 확인되어 개선 예정
+- Workaround : DS python 패키지 설치 순서를 1st 3.9, 2nd 2.7 로 권고 받음
+
+[gpadmin@testgm1 ext]$ gppkg -q --all
+20230721:16:10:04:003777 gppkg:testgm1:gpadmin-[INFO]:-Starting gppkg with args: -q --all
+pljava-2.0.4
+plr-3.0.4
+madlib-1.20.0+1
+DataSciencePython2.7-2.0.6
+DataSciencePython3.9-1.0.2
+[gpadmin@testgm1 ext]$ ls -al
+total 4
+drwxr-xr-x  6 gpadmin gpadmin   77 Jul 21 16:03 .
+drwxr-xr-x 14 gpadmin gpadmin 4096 Jul 21 16:08 ..
+drwxrwxr-x  8 gpadmin gpadmin  106 Jul 21 16:04 DataSciencePython
+drwxr-xr-x  6 gpadmin gpadmin   56 Jul 21 15:54 python
+drwxr-xr-x  6 gpadmin gpadmin   56 Jul 21 15:54 python3.9
+drwxr-xr-x 11 gpadmin gpadmin  157 May 19 12:27 R-3.3.3
+
+(2) python pip3 모듈 지원 및 설정 방안에 대한 SR진행(355299)
+- 이슈 : bundled python 2.7은 ensurepip 명령을 수행하여 구성 이후 사용 가능하고, 3.9는 즉시 pip 사용 가능한데 고객은 pip3 사용여부를 문의함
+- SR결과 : GPDB 6.x에서 pip3는 사용이 제한되며 GPDB 7.x에서는 지원 예정
+- Workaround : python3 -m pip install {패키지} 명령으로 대체하여 사용 권고
+ 
+(3) 사용자 Self python 추가 모듈 설치를 위한 pip 환경 구성 방법
+- python 2.7은 pip가 기본적으로 설치되어 있지 않기 때문에 아래 명령으로 초기 구성
+
+[gpadmin@testgm1 greenplum-db]$ python -m ensurepip --default-pip
+/usr/local/greenplum-db-6.23.1/ext/DataSciencePython/lib/python2.7/site-packages/OpenSSL/crypto.py:14: CryptographyDeprecationWarning: Python 2 is no longer supported by the Python core team. Support for it is now deprecated in cryptography, and will be removed in the next release.
+…
+Installing collected packages: setuptools, pip
+Successfully installed pip-19.2.3 setuptools-41.2.0
+[gpadmin@testgm1 greenplum-db]$ python -m pip --version
+/usr/local/greenplum-db-6.23.1/ext/DataSciencePython/lib/python2.7/site-packages/OpenSSL/crypto.py:14: CryptographyDeprecationWarning: Python 2 is no longer supported by the Python core team. Support for it is now deprecated in cryptography, and will be removed in the next release.
+  from cryptography import utils, x509
+pip 19.2.3 from /usr/local/greenplum-db-6.23.1/ext/python/lib/python2.7/site-packages/pip (python 2.7)
+ 
+- python 3.9는 pip가 기본적으로 설치되어 있으므로 아래 명령으로 버전 확인 가능
+
+[gpadmin@testgm1 gpdb6231]$ python3 -m pip --version
+pip 22.0.4 from /usr/local/greenplum-db-6.23.1/ext/python3.9/lib/python3.9/site-packages/pip (python 3.9)
+ 
+(4) python3.9 사용 시 환경변수 unset 방법
+- Greenplum은 기본적으로 python2.7을 사용하기 때문에 greenplum_path.sh에 python 관련 환경변수가 python2.7 기준으로 설정되어 있음
+- Greenplum 6.22.0 이후 버전에서 추가로 기본제공하는 python 3.9를 사용하기 위해서는 해당 세션에서 아래와 같이 python 2.7 환경변수를 unset 후 python3 명령을 사용 가능함(https://docs.vmware.com/en/VMware-Greenplum/7/greenplum-database/analytics-pl_python.html)
+
+[gpadmin@testgm1 greenplum-db]$ python -m pip --version
+/usr/local/greenplum-db-6.23.1/ext/DataSciencePython/lib/python2.7/site-packages/OpenSSL/crypto.py:14: CryptographyDeprecationWarning: Python 2 is no longer supported by the Python core team. Support for it is now deprecated in cryptography, and will be removed in the next release.
+  from cryptography import utils, x509
+pip 19.2.3 from /usr/local/greenplum-db-6.23.1/ext/python/lib/python2.7/site-packages/pip (python 2.7)
+[gpadmin@testgm1 greenplum-db]$ python3 -m pip --version
+Python path configuration:
+  PYTHONHOME = '/usr/local/greenplum-db-6.23.1/ext/python'
+  PYTHONPATH = '/usr/local/greenplum-db-6.23.1/ext/DataSciencePython/lib/python2.7/site-packages:/usr/local/greenplum-db-6.23.1/lib/python'
+…
+Fatal Python error: init_fs_encoding: failed to get the Python codec of the filesystem encoding
+Python runtime state: core initialized
+ModuleNotFoundError: No module named 'encodings'
+ 
+Current thread 0x00007f6de2cef740 (most recent call first):
+<no Python frame>
+[gpadmin@testgm1 greenplum-db]$ unset PYTHONHOME
+[gpadmin@testgm1 greenplum-db]$ unset PYTHONPATH
+[gpadmin@testgm1 greenplum-db]$ python3 -m pip --version
+pip 22.0.4 from /usr/local/greenplum-db-6.23.1/ext/python3.9/lib/python3.9/site-packages/pip (python 3.9)
+[gpadmin@testgm1 greenplum-db]$
+
