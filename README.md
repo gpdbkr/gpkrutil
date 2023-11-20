@@ -60,18 +60,21 @@ sdw4
 -rw-rw-r--  1 gpadmin gpadmin 13284  3월 30 13:50 gpkrutil_crt_dba_schema.log
 [gpadmin@mdw mnglog]$ grep  ERROR *.log
 
-5) Crontab 설정
+5) meminfo 설정
+[gpadmin@mdw gpkrutil]$ cd stattool
+[gpadmin@mdw stattool]$ sh setup_mem_info.sh
+
+6) Crontab 설정
 [gpadmin@mdw gpkrutil]$ cd crontool
-[gpadmin@mdw crontool]$ cat crontab.txt
+[gpadmin@mdw crontool]$ crontab crontab.txt
+6-1) crontab 적용여부 확인
+[gpadmin@mdw crontool]$ crontab -l
 * * * * * /bin/bash /data/gpkrutil/crontool/cron_sys_rsc.sh 5 11 &
 * * * * * /bin/bash /data/gpkrutil/stattool/dostat 1 1 &
 00 00 * * * /bin/bash /data/gpkrutil/crontool/cron_vacuum_analyze.sh &
-
 ...
-crontab에 적용
-[gpadmin@mdw crontool]$ crontab -e 
 
-6) 로그 확인
+7) 로그 확인
 [gpadmin@mdw crontool]$ cd $GPKRUTIL/statlog
 [gpadmin@mdw statlog]$ ls
 lt.20220401.txt  qqit.20220401.txt  session.20220401.txt
