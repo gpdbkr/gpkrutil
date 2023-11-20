@@ -1,6 +1,6 @@
 #!/bin/bash
-#export MON_HOME="/data/utilities"
-#source ${MON_HOME}/setup/cluster_info.sh
+
+source ~/.bashrc
 
 psql -c "select pg_logfile_rotate()"
 
