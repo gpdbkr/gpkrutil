@@ -1,7 +1,5 @@
 #!/bin/bash
-source /home/gpadmin/.bash_profile
-#export MON_HOME="/data/utilities"
-#source ${MON_HOME}/setup/cluster_info.sh
+source /home/gpadmin/.bashrc
 
 if [ $# -ne 2]
 then
