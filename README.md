@@ -168,6 +168,9 @@ rss.sh                      # resource queue 상태 로깅
 session.sh                  # 세션 정보(all, active, idle) 세션 수 로깅
 session_user.sh             # 사용자별 세션 카운트 로깅
 pgb_user.sh                 # pgbouncer의 사용자별 pool 카운트 로깅
+meminfo.sh                  # 모든 노드의 메모리 사용률 로깅
+mem_info.sh                 # 마스터 노드를 제외한 노드의 메모리 정보 수집 쉘 스크립트
+setup_mem_info.sh           # mem_info.sh 파일 배포 및 설정 쉘 스크립트
 
 [gpadmin@mdw gpkrutil]$
 ```
