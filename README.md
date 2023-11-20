@@ -131,10 +131,13 @@ cron_tb_size.sh             # 테이블/파티션별 사이즈를 DB에 적재
 cron_vacuum_analyze.sh      # 카탈로그 테이블 vacuum 수행
 crontab.txt                 # crontab 등록 예시
 run_sys_rsc.sh              # 모든 노드의 system 리소스 dstat 로깅 (기본 5초)
+cron_log_rotate.sh          # master 노드 pg_log 백업 및 용량 관리
+cron_smw_log_rotate.sh      # segment 노드 pg_log 백업 및 용량 관리
+cron_statlog_clean.sh       # statlog 파일 용량 관리
 
 ./mngdb:
 run_reorg_tb.sh             # 특정 테이블 reorg 수행
-vacuum.freeze.template0.sh  # template0 database vacuum full 수행
+vacuum_freeze_template0.sh  # template0 database vacuum full 수행
 vacuum_full_analyze.sh      # 카탈로그 Vacuum Full 수행
 fn_chk_skew.sql             # 데이터 파일을 이용하여 skew 점검하는 함수 소스
 crt_fn_chk_skew.sh          # skew 점검 함수 생성(1회 수행 필요)
