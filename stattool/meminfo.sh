@@ -15,9 +15,10 @@ TCNT=3
 for ((j=0;j<$TCNT;j++))
 	do
 	ssh mdw "${GPKRUTIL}/stattool/mem_info.sh"
+ 	ssh smdw "/home/gpadmin/gpkrutil/stattool/mem_info.sh"
 	for ((i=1;i<=$SEG_CNT;i++))
 		do
-		ssh sdw${i} "/home/gpadmin/utilities/mem_info.sh"
+		ssh sdw${i} "/home/gpadmin/gpkrutil/stattool/mem_info.sh"
 	done
 		sleep $SLEEP
 done
