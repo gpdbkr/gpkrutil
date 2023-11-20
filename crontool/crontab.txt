@@ -21,3 +21,8 @@
 
 ## resource logging of query session and cmd level
 * * * * * /bin/bash /data/gpkrutil/crontool/cron_session_cmd_rsc.sh 2 28 &
+
+## pg_log and statlog manage
+00 * * * * /bin/bash /data/gpkrutil/crontool/cron_log_rotate.sh &
+55 23 * * * /bin/bash /data/gpkrutil/crontool/cron_sdw_log_rotate.sh &
+59 23 * * * /bin/bash /data/gpkrutil/crontool/cron_statlog_clean.sh &
