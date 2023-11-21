@@ -22,21 +22,25 @@ SMDW_CNT=`ping -c 1 smdw | grep received | awk '{print $4}'`
 #done
 echo "Make /home/gpadmin/memutil/ to all nodes"
 
-gpssh -f ${GPKRUTIL}/hostfile_all '
+gpssh -f ${GPKRUTIL}/hostfile_all 'mkdir -p /home/gpadmin/memutil'
+gpssh -f ${GPKRUTIL}/hostfile_all 'chown -R gpadmin:gpadmin /home/gpadmin/memutil'
+
 
 ### scp mem_info.sh
 echo "Copy mem_info.sh to all segments"
 
-if [ $SMDW_CNT -ne 0 ]
-then
-	scp ${GPKRUTIL}/stattool/mem_info.sh smdw:/home/gpadmin/gpkrutil/stattool
-	ssh smdw chown -R gpadmin:gpadmin /home/gpadmin/gpkrutil/stattool/mem_info.sh
-else
-	echo "smdw skip copy file"
-fi
+#if [ $SMDW_CNT -ne 0 ]
+#then
+#	scp ${GPKRUTIL}/stattool/mem_info.sh smdw:/home/gpadmin/gpkrutil/stattool
+#	ssh smdw chown -R gpadmin:gpadmin /home/gpadmin/gpkrutil/stattool/mem_info.sh
+#else
+#	echo "smdw skip copy file"
+#fi
+#
+#for ((i=1;i<=SDW_CNT;i++))
+#	do
+#	scp ${GPKRUTIL}/stattool/mem_info.sh sdw${i}:/home/gpadmin/gpkrutil/stattool/mem_info.sh
+#	ssh sdw${i} chown -R gpadmin:gpadmin /home/gpadmin/gpkrutil/stattool/mem_info.sh
+#done
 
-for ((i=1;i<=SDW_CNT;i++))
-	do
-	scp ${GPKRUTIL}/stattool/mem_info.sh sdw${i}:/home/gpadmin/gpkrutil/stattool/mem_info.sh
-	ssh sdw${i} chown -R gpadmin:gpadmin /home/gpadmin/gpkrutil/stattool/mem_info.sh
-done
+gpscp -f ${GPKRUTIL}/hostfile_all ${GPKRUTIL}/stattool/mem_info.sh =:/home/gpadmin/memutil
