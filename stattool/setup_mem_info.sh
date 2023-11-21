@@ -1,8 +1,8 @@
 #!/bin/bash
 source /home/gpadmin/.bashrc
 
-SDW_CNT=`cat ${GPKRUTIL}/hostfile_seg | wc -l`
-SMDW_CNT=`ping -c 1 smdw | grep received | awk '{print $4}'`
+#SDW_CNT=`cat ${GPKRUTIL}/hostfile_seg | wc -l`
+#SMDW_CNT=`ping -c 1 smdw | grep received | awk '{print $4}'`
 
 ### make utilities dir
 #echo "Make /home/gpadmin/gpkrutil/stattool to all nodes"
@@ -20,6 +20,7 @@ SMDW_CNT=`ping -c 1 smdw | grep received | awk '{print $4}'`
 #	ssh sdw${i} mkdir -p /home/gpadmin/gpkrutil/stattool
 #	ssh sdw${i} chown -R gpadmin:gpadmin /home/gpadmin/gpkrutil/stattool
 #done
+
 echo "Make /home/gpadmin/memutil/ to all nodes"
 
 gpssh -f ${GPKRUTIL}/hostfile_all 'mkdir -p /home/gpadmin/memutil'
