@@ -61,11 +61,11 @@ sdw4
 [gpadmin@mdw mnglog]$ grep  ERROR *.log
 
 5) meminfo 설정
-[gpadmin@mdw gpkrutil]$ cd stattool
+[gpadmin@mdw gpkrutil]$ cd $GPKRUTIL/stattool
 [gpadmin@mdw stattool]$ sh setup_mem_info.sh
 
 6) Crontab 설정
-[gpadmin@mdw gpkrutil]$ cd crontool
+[gpadmin@mdw gpkrutil]$ cd $GPKRUTIL/crontool
 [gpadmin@mdw crontool]$ crontab crontab.txt
 6-1) crontab 적용여부 확인
 [gpadmin@mdw crontool]$ crontab -l
