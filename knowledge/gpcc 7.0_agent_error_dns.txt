@@ -1,0 +1,173 @@
+1. Greenplum 7에서의 GPCC 7.0 트러블슈팅
+   - gpcc agent 수행시 domain 서버 확인
+   - 아래와 같이 발생될 경우 domain server 설정 필요
+
+2. 에러 로그  
+1) gpcc start 수행시, agent 에러 발생
+[gpadmin@mdw greenplum-cc]$ gpcc start
+2023-12-06 18:00:45 Starting the gpcc agents and webserver...
+2023-12-06 18:00:45 Starting GPCC 7.0.0 from /usr/local/greenplum-cc-7.0.0 ...
+2023-12-06 18:00:49 Failed to start agent on sdw1. Please check logs on sdw1 and run gpcc start to restart agents.
+2023-12-06 18:00:49 Failed to start agent on sdw4. Please check logs on sdw4 and run gpcc start to restart agents.
+2023-12-06 18:00:49 Failed to start agent on sdw2. Please check logs on sdw2 and run gpcc start to restart agents.
+2023-12-06 18:00:49 Failed to start agent on sdw3. Please check logs on sdw3 and run gpcc start to restart agents.
+2023-12-06 18:00:49 Agent successfully started on 1/5 hosts
+2023-12-06 18:00:49 View Greenplum Command Center at http://mdw:28080
+
+2) sdw1의 에러 로그
+[gpadmin@sdw1 logs]$ cd /usr/local/greenplum-cc/logs
+[gpadmin@sdw1 logs]$ cat agent.log
+2023-12-07 10:23:16 [INFO]Start ConfigWatcher
+2023-12-07 10:23:16 [INFO]connect to rpc server cdw:8899
+2023-12-07 10:23:16 [CRITICAL]ControlCommand: agent cannot start due to no RPC connection failure rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing: dial tcp: lookup cdw on [::1]:53: read udp [::1]:27360->[::1]:53: read: connection refused"
+2023-12-07 10:23:16 [CRITICAL]ControlCommand: agent cannot start due to no RPC connection failure rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing: dial tcp: lookup cdw on [::1]:53: read udp [::1]:27360->[::1]:53: read: connection refused"
+##  주석 처리시 에러 
+[root@base network-scripts]# cat /etc/resolv.conf
+#nameserver 8.8.8.8
+[gpadmin@cdw ~]$
+[gpadmin@sdw1 logs]$ cat agent.2023-12-06_223157.log
+2023-12-06 22:31:41 [INFO]Start ConfigWatcher
+2023-12-06 22:31:41 [INFO]connect to rpc server cdw:8899
+2023-12-06 22:31:41 [CRITICAL]ControlCommand: agent cannot start due to no RPC connection failure rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing: dial tcp: lookup cdw on [::1]:53: read udp [::1]:27470->[::1]:53: read: connection refused"
+2023-12-06 22:31:41 [CRITICAL]ControlCommand: agent cannot start due to no RPC connection failure rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing: dial tcp: lookup cdw on [::1]:53: read udp [::1]:27470->[::1]:53: read: connection refused"
+
+3. DNS 설정
+1) 참고 URL: https://m.blog.naver.com/host365/222983239445
+[root@cdw ~]# yum install -y bind bind-chroot bind-utils
+[root@cdw ~]# rpm -qa |grep bind
+python3-bind-9.11.36-5.el8_7.2.noarch
+bind-libs-lite-9.11.36-5.el8_7.2.x86_64
+bind-utils-9.11.36-5.el8_7.2.x86_64
+bind-libs-9.11.36-5.el8_7.2.x86_64
+bind-chroot-9.11.36-5.el8_7.2.x86_64
+bind-license-9.11.36-5.el8_7.2.noarch
+bind-9.11.36-5.el8_7.2.x86_64
+
+[root@cdw ~]# cp /etc/named.conf /etc/named.conf.bk
+[root@cdw ~]# vi /etc/named.conf
+
+## /* */ 이 부분만 수정
+[root@cdw ~]# cat /etc/named.conf
+options {
+	listen-on port 53 { any; };              /*  127.0.0.1 => any */
+	listen-on-v6 port 53 { ::1; };
+	directory 	"/var/named";
+	dump-file 	"/var/named/data/cache_dump.db";
+	statistics-file "/var/named/data/named_stats.txt";
+	memstatistics-file "/var/named/data/named_mem_stats.txt";
+	secroots-file	"/var/named/data/named.secroots";
+	recursing-file	"/var/named/data/named.recursing";
+	allow-query     { any; };               /* localhost => any */
+	allow-query-cache { any; };             /* adding */
+
+## 맨 아래 쪽에 DNS 영역을 새로 추가
+[root@cdw ~]# vi /etc/named.rfc1912.zones
+// Adding for Greenplum and gpcc
+zone "gpdbkr.com" IN {
+        type master;
+        file "gpdbkr.com.zone";
+        allow-update { none; };
+};
+
+zone "65.16.172.in-addr.arpa" IN {
+        type master;
+        file "gpdbkr.com.re";
+        allow-update { none; };
+};
+
+[root@cdw ~]# cd /var/named/
+[root@cdw ~]# cp named.localhost gpdbkr.com.zone   ## 정방향
+[root@cdw ~]# chmod 644 gpdbkr.com.zone
+[root@cdw ~]# chown root.named gpdbkr.com.zone
+[root@cdw ~]# cp named.localhost gpdbkr.com.re.    ## 역방향
+[root@cdw ~]# chmod 644 gpdbkr.com.re
+[root@cdw ~]# chown root.named gpdbkr.com.re
+[root@cdw ~]# vi /var/named/gpdbkr.com.zone
+[root@cdw ~]# cat /var/named/gpdbkr.com.zone
+$TTL 1D
+@	IN SOA	gpdbkr.com. root(
+					0	; serial
+					1D	; refresh
+					1H	; retry
+					1W	; expire
+					3H )	; minimum
+	NS	@
+	A	172.16.65.130
+ns      A       172.16.65.130
+cdw     A       172.16.65.130
+scdw    A       172.16.65.129
+sdw1    A       172.16.65.131
+sdw2    A       172.16.65.132
+sdw3    A       172.16.65.133
+sdw4    A       172.16.65.134
+[root@cdw ~]# vi /var/named/gpdbkr.com.re
+[root@cdw ~]# cat /var/named/gpdbkr.com.re
+$TTL 1D
+@	IN SOA	gpdbkr.com. root(
+					0	; serial
+					1D	; refresh
+					1H	; retry
+					1W	; expire
+					3H )	; minimum
+	NS	@
+	A	172.16.65.130
+130	PTR	ns.gpdbkr.com.
+130	PTR	cdw.gpdbkr.com.
+129	PTR	scdw.gpdbkr.com.
+131	PTR	sdw1.gpdbkr.com.
+132	PTR	sdw2.gpdbkr.com.
+133	PTR	sdw3.gpdbkr.com.
+134	PTR	sdw4.gpdbkr.com.
+[root@cdw ~]#
+
+## 파일 오류 체크
+[root@cdw ~]# named-checkzone gpdbkr.com /var/named/gpdbkr.com.zone
+zone gpdbkr.com/IN: loaded serial 0
+OK
+[root@cdw ~]# named-checkzone gpdbkr.com /var/named/gpdbkr.com.re
+zone gpdbkr.com/IN: loaded serial 0
+OK
+[root@cdw ~]#
+
+## nslookup 확인
+[root@cdw ~]# systemctl start named
+[root@cdw ~]# systemctl enable named
+[root@cdw ~]# systemctl status named
+[root@cdw ~]# systemctl restart NetworkManager.service
+[root@cdw ~]# nslookup cdw.gpdbkr.com
+[root@cdw ~]# nslookup scdw.gpdbkr.com
+[root@cdw ~]# nslookup sdw1.gpdbkr.com
+[root@cdw ~]# nslookup sdw2.gpdbkr.com
+[root@cdw ~]# nslookup sdw3.gpdbkr.com
+[root@cdw ~]# nslookup sdw4.gpdbkr.com
+[root@cdw ~]# nslookup 172.16.65.130
+
+4. /etc/hosts 설정
+## /etc/hosts 설정시 아래와 같이 설정, domain 추가 
+## Greenplum 설치시에는 sdw1과 같이 설치해도 문제 없으나, gpcc 설치시에는 도메인이 필요 함.
+[root@sdw1 ~]# cat /etc/hosts
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+#::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+172.16.65.130 cdw.gpdbkr.com cdw mdw
+172.16.65.129 scdw.gpdbkr.com scdw smdw
+172.16.65.131 sdw1.gpdbkr.com sdw1
+172.16.65.132 sdw2.gpdbkr.com sdw2
+172.16.65.133 sdw3.gpdbkr.com sdw3
+172.16.65.134 sdw4.gpdbkr.com sdw4
+[root@sdw1 ~]#
+
+5. 모든 셋팅을 도메인으로 설정한 후에 gpcc agent가 정상적으로 startup 함.
+[gpadmin@cdw greenplum-db]$ gpcc start
+2023-12-07 14:10:11 Starting the gpcc agents and webserver...
+2023-12-07 14:10:11 Starting GPCC 7.0.0 from /usr/local/greenplum-cc-7.0.0 ...
+2023-12-07 14:10:15 Agent successfully started on 6/6 hosts
+2023-12-07 14:10:15 View Greenplum Command Center at http://cdw.gpdbkr.com:28080
+[gpadmin@cdw greenplum-db]$
+
+6. DNS 서버 설정 이전시 nslookup 수행시 에러 
+[root@mdw ~]# nslookup sdw2
+Server:		8.8.8.8
+Address:	8.8.8.8#53
+
+** server can't find sdw2: NXDOMAIN

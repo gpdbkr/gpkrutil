@@ -1,0 +1,73 @@
+Greenplum 7에서 gpinitstandby 수행시 에러 발생될 때 해결 방법
+
+1. 요약
+   - cdw에 Greenplum 설치 및 gpcc 설치 후 scdw에 스탠바이를 구성할 때 에러 발생
+   - gpinitstandby 수행시 metrics_collector 파일을 찾을 수 없어서 발생
+   - cdw의 metrics_collector.so 파일을 scdw에 복사
+   - scdw의 기존 gpseg-1 폴더 삭제 후 gpinitstandby 재수행 필요
+
+2. 에러 현상
+## gpinitstandby 로그 
+[gpadmin@cdw gpconfigs]$ gpinitstandby -s scdw.gpdbkr.com
+20231207:12:23:35:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Validating environment and parameters for standby initialization...
+20231207:12:23:35:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Checking for data directory /data/coordinator/gpseg-1 on scdw.gpdbkr.com
+20231207:12:23:36:034242 gpinitstandby:cdw:gpadmin-[INFO]:------------------------------------------------------
+20231207:12:23:36:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Greenplum standby coordinator initialization parameters
+20231207:12:23:36:034242 gpinitstandby:cdw:gpadmin-[INFO]:------------------------------------------------------
+20231207:12:23:36:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Greenplum coordinator hostname               = cdw.gpdbkr.com
+20231207:12:23:36:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Greenplum coordinator data directory         = /data/coordinator/gpseg-1
+20231207:12:23:36:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Greenplum coordinator port                   = 5432
+20231207:12:23:36:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Greenplum standby coordinator hostname       = scdw.gpdbkr.com
+20231207:12:23:36:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Greenplum standby coordinator port           = 5432
+20231207:12:23:36:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Greenplum standby coordinator data directory = /data/coordinator/gpseg-1
+20231207:12:23:36:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Greenplum update system catalog         = On
+Do you want to continue with standby coordinator initialization? Yy|Nn (default=N):
+> y
+20231207:12:23:38:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Syncing Greenplum Database extensions to standby
+...
+20231207:12:23:46:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Checking if standby coordinator is running on host: scdw.gpdbkr.com  in directory: /data/coordinator/gpseg-1
+20231207:12:23:46:034242 gpinitstandby:cdw:gpadmin-[INFO]:-CoordinatorStart pg_ctl cmd is env GPSESSID=0000000000 GPERA=None $GPHOME/bin/pg_ctl -D /data/coordinator/gpseg-1 -l /data/coordinator/gpseg-1/log/startup.log -t 600 -o " -c gp_role=dispatch " start
+20231207:12:23:47:034242 gpinitstandby:cdw:gpadmin-[ERROR]:-Failed to create standby
+20231207:12:23:47:034242 gpinitstandby:cdw:gpadmin-[WARNING]:-Trying to rollback changes that have been made...
+20231207:12:23:47:034242 gpinitstandby:cdw:gpadmin-[INFO]:-Rolling back catalog change...
+..
+20231207:12:23:48:034242 gpinitstandby:cdw:gpadmin-[ERROR]:-Error initializing standby coordinator: failed to start standby
+[gpadmin@cdw gpconfigs]$
+
+## scdw의 에러 로그 
+[gpadmin@scdw gpseg-1]$ cd log
+[gpadmin@scdw log]$ ls
+startup.log
+[gpadmin@scdw log]$ cat startup.log
+2023-12-07 10:14:47.069793 KST,,,p6659,th-456981760,,,,0,,,seg-1,,,,,"FATAL","58P01","could not access file ""metrics_collector"": No such file or directory",,,,,,,,"internal_load_library","dfmgr.c",211,1    0xcdd4bc postgres errstart (elog.c:494)
+2    0xce35d3 postgres <symbol not found> (dfmgr.c:208)
+3    0xce3c44 postgres load_file (dfmgr.c:165)
+4    0xcee30b postgres <symbol not found> (miscinit.c:1673)
+5    0xcef97e postgres process_shared_preload_libraries (miscinit.c:1695)
+6    0xabce0c postgres PostmasterMain (postmaster.c:1241)
+7    0x6e43d4 postgres main (main.c:173)
+8    0x7f54e1460d85 libc.so.6 __libc_start_main + 0xe5
+9    0x6effde postgres _start + 0x2e
+
+2023-12-07 10:14:47.207186 KST,,,p6659,th-456981760,,,,0,,,seg-1,,,,,"LOG","00000","database system is shut down",,,,,,,,"UnlinkLockFiles","miscinit.c",920,
+[gpadmin@scdw log]$
+
+
+3. 에러 원인 
+  - metrics_collector 파일이 없어서 발생
+    "could not access file ""metrics_collector"": No such file or directory" 파일 찾을 수 없음.
+  - 마스터 노드(cdw)에 gpcc를 설치하기 위해서 metrics_collector 설치된 상태에서 스탠바이 마스터 노드(scdw)를 추가할 때 에러 발생
+
+
+4. 해결 방법
+  - 마스터 노드의 metrics_collector.so 파일을 스탠바이 마스터에 복사
+  - scdw의 기존 gpseg-1 폴더 삭제
+  - gpinitstandby 다시 실행
+[gpadmin@scdw greenplum-db]$ scp cdw:/usr/local/greenplum-db/lib/postgresql/metrics_collector.so /usr/local/greenplum-db/lib/postgresql/metrics_collector.so
+metrics_collector.so                                                                                                                                                                 100% 3487KB  42.7MB/s   00:00
+[gpadmin@scdw greenplum-db]$
+[gpadmin@cdw gpconfigs]$ gpinitstandby -s scdw.gpdbkr.com
+...
+20231207:12:31:11:044378 gpinitstandby:cdw:gpadmin-[INFO]:-Backup files of pg_hba.conf cleaned up successfully.
+20231207:12:31:11:044378 gpinitstandby:cdw:gpadmin-[INFO]:-Successfully created standby coordinator on scdw.gpdbkr.com
+[gpadmin@cdw greenplum-db]$

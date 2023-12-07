@@ -1,0 +1,13 @@
+1. 현상
+  - 세그먼트 노드 당 16개 primary instance 구성 후 TPC-DS 실행 시 gpfdist 실행 단계에서 오류 발생
+  - 에러 메시지 : ssh_exchange_identification: Connection closed by remote host
+  - 세그먼트 노드 사양 : 4 vCPU, 64GB mem, 6TB disk
+
+2. 원인
+  - 인스턴스 증가로 인한 too many SSH connection으로 인한 에러로 확인됨
+  - KB : https://community.pivotal.io/s/article/gpcrondump-Failed-with-Error-sshexchangeidentification-read-Connection-reset-by-peer?language=en_US
+
+3. 조치방안
+  - /etc/ssh/sshd_config 파일의 MaxStartups 설정값 변경
+  - 기존 : 10:30:200
+  - 변경 : 20:30:400
