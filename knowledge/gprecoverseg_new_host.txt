@@ -1,0 +1,431 @@
+Greenplum Segment Node H/W가 장시간 장애 났을 때 여유 장비로 전환하는 방법
+
+1. 개요
+  1) Greenplum 세그먼트 노드 H/W가 장시간 장애 났을 경우, 미러를 새로운 H/W에 구성
+  2) 방법
+     - 호스트별 미러 재구성   : gprecoverseg -p newhost
+     - 인스턴스별 미러 재구성  : gprecoverseg -i recover_config_file
+       * 인스턴스 재구성으로는 같은 호스트에서 경로 변경도 가능
+  3) 참고 링크
+     - https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/utility_guide-ref-gprecoverseg.html
+  4) 현재 시스템 구성
+    mdw. - Master
+    sdw1 - P0,M3 
+    sdw2 - P1,M0
+    sdw3 - P2,M1
+    sdw4 - P3,M2
+  5) 테스트 시나리오
+     2.1: sdw1 shutdown 후 smdw 노드로 시스템 재구성     (즉, sdw1 => smdw로 전환), 노드 재구성 옵션 적용
+     2.2: smdw 노드 shutdown 후 sdw1 노드로 시스템 재구성 (즉, smdw => sdw1로 전환), 인스턴스 재구성 옵션 적용
+  6) 정상일 때의 Greenplum 구성     
+## 정상적일 때 환경
+[gpadmin@mdw gpconfigs]$ gpstate -c
+gpstate:mdw:gpadmin-[INFO]:-Starting gpstate with args: -c
+gpstate:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+gpstate:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+gpstate:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+gpstate:mdw:gpadmin-[INFO]:--Current GPDB mirror list and status
+gpstate:mdw:gpadmin-[INFO]:--Type = Spread
+gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+gpstate:mdw:gpadmin-[INFO]:-   Status                             Data State     Primary   Datadir                Port   Mirror   Datadir               Port
+gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw1      /data/primary/gpseg0   6000   sdw2     /data/mirror/gpseg0   7000
+gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw2      /data/primary/gpseg1   6000   sdw3     /data/mirror/gpseg1   7000
+gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw3      /data/primary/gpseg2   6000   sdw4     /data/mirror/gpseg2   7000
+gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   sdw1     /data/mirror/gpseg3   6001
+gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+[gpadmin@mdw gpconfigs]$
+
+2. New Host에서 Failover 구성 방법
+2.1 세그먼트 노드가 다운된 경우, 다른 노드로 전환하는 방법
+  1) 테스트 시나리오 
+    - sdw1 노드 한대가 강제 shutdown 되었을 때 smdw 노드로 전환(테스트 용도)
+    - Failover 될 서버에는 OS, Greenplum 바이너리 등 모두 사전 설치가 되어 있어야 합니다.
+    - 데이터 경로까지 모두 만들어져 있어야 합니다. (/data/primary, /data/mirror 등)
+    - gprecoverseg -p newhost
+
+  2) 테스트 내용
+##### sdw1 노드 장애  
+[gpadmin@mdw ~]$ gpstate -c
+gpstate:mdw:gpadmin-[INFO]:-Starting gpstate with args: -c
+gpstate:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+gpstate:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+gpstate:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+gpstate:mdw:gpadmin-[INFO]:--Current GPDB mirror list and status
+gpstate:mdw:gpadmin-[INFO]:--Type = Spread
+gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+gpstate:mdw:gpadmin-[INFO]:-   Status                             Data State     Primary   Datadir                Port   Mirror   Datadir               Port
+gpstate:mdw:gpadmin-[WARNING]:-Mirror Active, Primary Failed      Not In Sync    sdw1      /data/primary/gpseg0   6000   sdw2     /data/mirror/gpseg0   7000   <<<<<<<<
+gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw2      /data/primary/gpseg1   6000   sdw3     /data/mirror/gpseg1   7000
+gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw3      /data/primary/gpseg2   6000   sdw4     /data/mirror/gpseg2   7000
+gpstate:mdw:gpadmin-[WARNING]:-Primary Active, Mirror Failed      Not In Sync    sdw4      /data/primary/gpseg3   6000   sdw1     /data/mirror/gpseg3   7000   <<<<<<<<
+gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+gpstate:mdw:gpadmin-[WARNING]:-1 segment(s) configured as mirror(s) are acting as primaries
+gpstate:mdw:gpadmin-[WARNING]:-2 primary segment(s) are not synchronized
+[gpadmin@mdw ~]$
+
+##### new host로 전환
+[gpadmin@mdw gpconfigs]$ gprecoverseg -p smdw
+20240110:10:20:28:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Starting gprecoverseg with args: -p smdw
+20240110:10:20:28:085016 gprecoverseg:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+20240110:10:20:28:085016 gprecoverseg:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+20240110:10:20:28:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[WARNING]:-One or more hosts are not reachable via SSH.  Any segments on those hosts will be marked down
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[WARNING]:-Host sdw1 is unreachable
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[WARNING]:-Not recovering segment 2 because sdw1 is unreachable
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[WARNING]:-Not recovering segment 9 because sdw1 is unreachable
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Heap checksum setting is consistent between master and the segments that are candidates for recoverseg
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Greenplum instance recovery parameters
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Recovery type              = Pool Host
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Pool host for recovery     = smdw
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Recovery 1 of 2
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Synchronization mode                 = Full
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance host                 = sdw1
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance address              = sdw1
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance directory            = /data/primary/gpseg0
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance port                 = 6000
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance host        = sdw2
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance address     = sdw2
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance directory   = /data/mirror/gpseg0
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance port        = 7000
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance host        = smdw
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance address     = smdw
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance directory   = /data/primary/gpseg0
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance port        = 6000
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Recovery 2 of 2
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Synchronization mode                 = Full
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance host                 = sdw1
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance address              = sdw1
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance directory            = /data/mirror/gpseg3
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance port                 = 7000
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance host        = sdw4
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance address     = sdw4
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance directory   = /data/primary/gpseg3
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance port        = 6000
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance host        = smdw
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance address     = smdw
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance directory   = /data/mirror/gpseg3
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance port        = 6001
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+
+Continue with segment recovery procedure Yy|Nn (default=N):
+> y
+20240110:10:20:38:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Syncing Greenplum Database extensions
+20240110:10:20:39:085016 gprecoverseg:mdw:gpadmin-[INFO]:-The packages on smdw are consistent.
+20240110:10:20:39:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Starting to create new pg_hba.conf on primary segments
+20240110:10:20:40:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Successfully modified pg_hba.conf on primary segments to allow replication connections
+20240110:10:20:40:085016 gprecoverseg:mdw:gpadmin-[INFO]:-2 segment(s) to recover
+20240110:10:20:40:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Skipping shared memory cleanup and gpsegstop on unreachable host: sdw1 segment: 0
+20240110:10:20:40:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Skipping shared memory cleanup and gpsegstop on unreachable host: sdw1 segment: 3
+20240110:10:20:40:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Setting up the required segments for recovery
+20240110:10:20:40:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Updating configuration for mirrors
+20240110:10:20:40:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Initiating segment recovery. Upon completion, will start the successfully recovered segments
+20240110:10:20:40:085016 gprecoverseg:mdw:gpadmin-[INFO]:-era is 8ee3ebb3041964e3_240110101628
+smdw (dbid 2): pg_basebackup: base backup completed
+smdw (dbid 9): pg_basebackup: base backup completed
+20240110:10:21:20:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Triggering FTS probe
+20240110:10:21:20:085016 gprecoverseg:mdw:gpadmin-[INFO]:-********************************
+20240110:10:21:20:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Segments successfully recovered.
+20240110:10:21:20:085016 gprecoverseg:mdw:gpadmin-[INFO]:-********************************
+20240110:10:21:20:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Recovered mirror segments need to sync WAL with primary segments.
+20240110:10:21:20:085016 gprecoverseg:mdw:gpadmin-[INFO]:-Use 'gpstate -e' to check progress of WAL sync remaining bytes
+You have new mail in /var/spool/mail/gpadmin
+[gpadmin@mdw gpconfigs]$
+
+##### 전환 되었음을 확인할 수 있음.
+[gpadmin@mdw gpconfigs]$ gpstate -e
+20240110:10:21:25:085847 gpstate:mdw:gpadmin-[INFO]:-Starting gpstate with args: -e
+20240110:10:21:25:085847 gpstate:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+20240110:10:21:25:085847 gpstate:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+20240110:10:21:25:085847 gpstate:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20240110:10:21:25:085847 gpstate:mdw:gpadmin-[INFO]:-Gathering data from segments...
+20240110:10:21:26:085847 gpstate:mdw:gpadmin-[INFO]:-----------------------------------------------------
+20240110:10:21:26:085847 gpstate:mdw:gpadmin-[INFO]:-Segment Mirroring Status Report
+20240110:10:21:26:085847 gpstate:mdw:gpadmin-[INFO]:-----------------------------------------------------
+20240110:10:21:26:085847 gpstate:mdw:gpadmin-[INFO]:-Segments with Primary and Mirror Roles Switched
+20240110:10:21:26:085847 gpstate:mdw:gpadmin-[INFO]:-   Current Primary   Port   Mirror   Port
+20240110:10:21:26:085847 gpstate:mdw:gpadmin-[INFO]:-   sdw2              7000   smdw     6000
+
+##### role 변경은 동일 함.
+[gpadmin@mdw gpconfigs]$ gprecoverseg -r
+
+##### 최종 New 호스트에 변경된 사항
+[gpadmin@mdw gpconfigs]$ gpstate -c
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-Starting gpstate with args: -c
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:--Current GPDB mirror list and status
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:--Type = Spread
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Status                             Data State     Primary   Datadir                Port   Mirror   Datadir               Port
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   smdw      /data/primary/gpseg0   6000   sdw2     /data/mirror/gpseg0   7000
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw2      /data/primary/gpseg1   6000   sdw3     /data/mirror/gpseg1   7000
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw3      /data/primary/gpseg2   6000   sdw4     /data/mirror/gpseg2   7000
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   smdw     /data/mirror/gpseg3   6001
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+[gpadmin@mdw gpconfigs]$
+
+2.2. 인스턴스 단위로 다른 노드에 옮기는 방법
+  1) 시나리오 
+    - smdw에 구성된 세그먼트 인스턴스를 sdw1로 전환 
+    - smdw 노드 shutdown
+    - recovery할 예제 파일 생성 (gprecoverseg -o recover_config_file)
+    - 호스트에 맞도록 파일 수정   (vi recover_config_file)
+    - new 호스트에 복구        (gprecoverseg -i recover_config_file)
+    - role 체인지            (gprecoverseg -r)
+  2) 테스트 
+###### smdw shutdown
+[gpadmin@mdw ~]$ ssh smdw
+Last login: Wed Jan 10 11:41:33 2024 from 172.16.65.140
+[gpadmin@smdw ~]$ su -
+암호:
+마지막 로그인: 수  1월 10 13:17:27 KST 2024 172.16.65.140에서 시작 일시 pts/0
+[root@smdw ~]# sync;init 0
+
+##### Auto failover 이후 구성 환경
+[gpadmin@mdw gpconfigs]$ gpstate -c
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-Starting gpstate with args: -c
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:--Current GPDB mirror list and status
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:--Type = Spread
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Status                             Data State     Primary   Datadir                Port   Mirror   Datadir               Port
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   smdw      /data/primary/gpseg0   6000   sdw2     /data/mirror/gpseg0   7000
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw2      /data/primary/gpseg1   6000   sdw3     /data/mirror/gpseg1   7000
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw3      /data/primary/gpseg2   6000   sdw4     /data/mirror/gpseg2   7000
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   smdw     /data/mirror/gpseg3   6001
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+[gpadmin@mdw gpconfigs]$
+
+##### recover_config_file 파일 생성 및 호스트명 수정
+[gpadmin@mdw gpconfigs]$ gprecoverseg -o recover_config_file
+20240110:13:32:51:010117 gprecoverseg:mdw:gpadmin-[INFO]:-Starting gprecoverseg with args: -o recover_config_file
+20240110:13:32:51:010117 gprecoverseg:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+20240110:13:32:51:010117 gprecoverseg:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+20240110:13:32:51:010117 gprecoverseg:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20240110:13:32:51:010117 gprecoverseg:mdw:gpadmin-[INFO]:-Configuration file output to recover_config_file successfully.
+You have new mail in /var/spool/mail/gpadmin
+
+##### recover 예제 파일 생성
+[gpadmin@mdw gpconfigs]$ cat recover_config_file
+smdw|6000|/data/primary/gpseg0
+smdw|6001|/data/mirror/gpseg3
+
+##### new 호스트명 추가, 중간에 스페이스 한칸 필요 (AS-IS TO-BE)
+[gpadmin@mdw gpconfigs]$ vi recover_config_file
+[gpadmin@mdw gpconfigs]$ cat recover_config_file
+smdw|6000|/data/primary/gpseg0 sdw1|6000|/data/primary/gpseg0
+smdw|6001|/data/mirror/gpseg3 sdw1|6001|/data/mirror/gpseg3
+[gpadmin@mdw gpconfigs]$
+
+##### recover_config_file 파일 참조하여 새로운 미러 구성
+[gpadmin@mdw gpconfigs]$ gprecoverseg -i recover_config_file
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Starting gprecoverseg with args: -i recover_config_file
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Heap checksum setting is consistent between master and the segments that are candidates for recoverseg
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Greenplum instance recovery parameters
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Recovery from configuration -i option supplied
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Recovery 1 of 2
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Synchronization mode                 = Full
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance host                 = smdw
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance address              = smdw
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance directory            = /data/primary/gpseg0
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance port                 = 6000
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance host        = sdw2
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance address     = sdw2
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance directory   = /data/mirror/gpseg0
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance port        = 7000
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance host        = sdw1
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance address     = sdw1
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance directory   = /data/primary/gpseg0
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance port        = 6000
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Recovery 2 of 2
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Synchronization mode                 = Full
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance host                 = smdw
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance address              = smdw
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance directory            = /data/mirror/gpseg3
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance port                 = 6001
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance host        = sdw4
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance address     = sdw4
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance directory   = /data/primary/gpseg3
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance port        = 6000
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance host        = sdw1
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance address     = sdw1
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance directory   = /data/mirror/gpseg3
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance port        = 6001
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+
+Continue with segment recovery procedure Yy|Nn (default=N):
+> y
+20240110:13:37:29:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Syncing Greenplum Database extensions
+20240110:13:37:29:013711 gprecoverseg:mdw:gpadmin-[INFO]:-The following packages will be uninstalled on sdw1: greenplum_backup_restore-1.28.1-gp6-rhel7-x86_64.gppkg
+20240110:13:37:30:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Starting to create new pg_hba.conf on primary segments
+20240110:13:37:31:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Successfully modified pg_hba.conf on primary segments to allow replication connections
+20240110:13:37:31:013711 gprecoverseg:mdw:gpadmin-[INFO]:-2 segment(s) to recover
+20240110:13:37:31:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Ensuring 2 failed segment(s) are stopped
+20240110:13:37:31:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Ensuring that shared memory is cleaned up for stopped segments
+20240110:13:37:32:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Setting up the required segments for recovery
+20240110:13:37:32:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Updating configuration for mirrors
+20240110:13:37:32:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Initiating segment recovery. Upon completion, will start the successfully recovered segments
+20240110:13:37:32:013711 gprecoverseg:mdw:gpadmin-[INFO]:-era is 8ee3ebb3041964e3_240110132151
+sdw1 (dbid 2): pg_basebackup: base backup completed
+sdw1 (dbid 9): pg_basebackup: base backup completed
+20240110:13:38:33:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Triggering FTS probe
+20240110:13:38:33:013711 gprecoverseg:mdw:gpadmin-[INFO]:-********************************
+20240110:13:38:33:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Segments successfully recovered.
+20240110:13:38:33:013711 gprecoverseg:mdw:gpadmin-[INFO]:-********************************
+20240110:13:38:33:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Recovered mirror segments need to sync WAL with primary segments.
+20240110:13:38:33:013711 gprecoverseg:mdw:gpadmin-[INFO]:-Use 'gpstate -e' to check progress of WAL sync remaining bytes
+You have new mail in /var/spool/mail/gpadmin
+[gpadmin@mdw gpconfigs]$
+[gpadmin@mdw gpconfigs]$
+
+##### 새로운 노드에서 복구, 
+[gpadmin@mdw gpconfigs]$ gpstate -c
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-Starting gpstate with args: -c
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:--Current GPDB mirror list and status
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:--Type = Spread
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-   Status                             Data State     Primary   Datadir                Port   Mirror   Datadir               Port
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-   Mirror Active, Primary Available   Synchronized   sdw1      /data/primary/gpseg0   6000   sdw2     /data/mirror/gpseg0   7000
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw2      /data/primary/gpseg1   6000   sdw3     /data/mirror/gpseg1   7000
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw3      /data/primary/gpseg2   6000   sdw4     /data/mirror/gpseg2   7000
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   sdw1     /data/mirror/gpseg3   6001
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[WARNING]:-1 segment(s) configured as mirror(s) are acting as primaries
+[gpadmin@mdw gpconfigs]$
+
+##### 세그먼트 인스턴스 롤 체인지 
+[gpadmin@mdw gpconfigs]$ gprecoverseg -r
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Starting gprecoverseg with args: -r
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Greenplum instance recovery parameters
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Recovery type              = Rebalance
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Unbalanced segment 1 of 2
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Unbalanced instance host        = sdw2
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Unbalanced instance address     = sdw2
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Unbalanced instance directory   = /data/mirror/gpseg0
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Unbalanced instance port        = 7000
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Balanced role                   = Mirror
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Current role                    = Primary
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Unbalanced segment 2 of 2
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Unbalanced instance host        = sdw1
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Unbalanced instance address     = sdw1
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Unbalanced instance directory   = /data/primary/gpseg0
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Unbalanced instance port        = 6000
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Balanced role                   = Primary
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Current role                    = Mirror
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[WARNING]:-This operation will cancel queries that are currently executing.
+20240110:13:38:47:014805 gprecoverseg:mdw:gpadmin-[WARNING]:-Connections to the database however will not be interrupted.
+
+Continue with segment rebalance procedure Yy|Nn (default=N):
+> y
+20240110:13:38:49:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Determining primary and mirror segment pairs to rebalance
+20240110:13:38:49:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Stopping unbalanced primary segments...
+20240110:13:38:49:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Triggering segment reconfiguration
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Starting segment synchronization
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-=============================START ANOTHER RECOVER=========================================
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Heap checksum setting is consistent between master and the segments that are candidates for recoverseg
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Greenplum instance recovery parameters
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Recovery type              = Standard
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Recovery 1 of 1
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Synchronization mode                 = Incremental
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance host                 = sdw2
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance address              = sdw2
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance directory            = /data/mirror/gpseg0
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance port                 = 7000
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance host        = sdw1
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance address     = sdw1
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance directory   = /data/primary/gpseg0
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance port        = 6000
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target                      = in-place
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
+20240110:13:38:56:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Starting to create new pg_hba.conf on primary segments
+20240110:13:38:57:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Successfully modified pg_hba.conf on primary segments to allow replication connections
+20240110:13:38:57:014805 gprecoverseg:mdw:gpadmin-[INFO]:-1 segment(s) to recover
+20240110:13:38:57:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Ensuring 1 failed segment(s) are stopped
+20240110:13:38:57:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Ensuring that shared memory is cleaned up for stopped segments
+20240110:13:38:57:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Setting up the required segments for recovery
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Updating configuration for mirrors
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Initiating segment recovery. Upon completion, will start the successfully recovered segments
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-era is 8ee3ebb3041964e3_240110132151
+sdw2 (dbid 6): no rewind required
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Triggering FTS probe
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-********************************
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Segments successfully recovered.
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-********************************
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Recovered mirror segments need to sync WAL with primary segments.
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-Use 'gpstate -e' to check progress of WAL sync remaining bytes
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-==============================END ANOTHER RECOVER==========================================
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-******************************************************************
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-The rebalance operation has completed successfully.
+20240110:13:38:58:014805 gprecoverseg:mdw:gpadmin-[INFO]:-******************************************************************
+[gpadmin@mdw gpconfigs]$
+
+##### 정상확인
+[gpadmin@mdw gpconfigs]$
+[gpadmin@mdw gpconfigs]$ gpstate -e
+20240110:13:39:08:015254 gpstate:mdw:gpadmin-[INFO]:-Starting gpstate with args: -e
+20240110:13:39:08:015254 gpstate:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+20240110:13:39:08:015254 gpstate:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+20240110:13:39:08:015254 gpstate:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20240110:13:39:08:015254 gpstate:mdw:gpadmin-[INFO]:-Gathering data from segments...
+20240110:13:39:08:015254 gpstate:mdw:gpadmin-[INFO]:-----------------------------------------------------
+20240110:13:39:08:015254 gpstate:mdw:gpadmin-[INFO]:-Segment Mirroring Status Report
+20240110:13:39:08:015254 gpstate:mdw:gpadmin-[INFO]:-----------------------------------------------------
+20240110:13:39:08:015254 gpstate:mdw:gpadmin-[INFO]:-All segments are running normally
+[gpadmin@mdw gpconfigs]$
+
+##### 마지막 환경 구성 확인
+[gpadmin@mdw gpconfigs]$ gpstate -c
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-Starting gpstate with args: -c
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393'
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.21.0 build commit:d0087e3b24c54d203ca8bb315559205f13cd6393) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Jun 10 2022 01:44:57'
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:--Current GPDB mirror list and status
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:--Type = Spread
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-   Status                             Data State     Primary   Datadir                Port   Mirror   Datadir               Port
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw1      /data/primary/gpseg0   6000   sdw2     /data/mirror/gpseg0   7000
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw2      /data/primary/gpseg1   6000   sdw3     /data/mirror/gpseg1   7000
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw3      /data/primary/gpseg2   6000   sdw4     /data/mirror/gpseg2   7000
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   sdw1     /data/mirror/gpseg3   6001
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+[gpadmin@mdw gpconfigs]$
