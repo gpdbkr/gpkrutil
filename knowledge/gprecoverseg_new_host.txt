@@ -228,6 +228,7 @@ smdw|6000|/data/primary/gpseg0
 smdw|6001|/data/mirror/gpseg3
 
 ##### new 호스트명 추가, 중간에 스페이스 한칸 필요 (AS-IS TO-BE)
+##### 기존 6001 포트를 7000 으로 원복
 [gpadmin@mdw gpconfigs]$ vi recover_config_file
 [gpadmin@mdw gpconfigs]$ cat recover_config_file
 smdw|6000|/data/primary/gpseg0 sdw1|6000|/data/primary/gpseg0
@@ -267,7 +268,7 @@ smdw|6001|/data/mirror/gpseg3 sdw1|7000|/data/mirror/gpseg3
 20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance host                 = smdw
 20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance address              = smdw
 20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance directory            = /data/mirror/gpseg3
-20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance port                 = 6001
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Failed instance port                 = 7000
 20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance host        = sdw4
 20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance address     = sdw4
 20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Source instance directory   = /data/primary/gpseg3
@@ -275,7 +276,7 @@ smdw|6001|/data/mirror/gpseg3 sdw1|7000|/data/mirror/gpseg3
 20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance host        = sdw1
 20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance address     = sdw1
 20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance directory   = /data/mirror/gpseg3
-20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance port        = 6001
+20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance port        = 7000
 20240110:13:37:27:013711 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
 
 Continue with segment recovery procedure Yy|Nn (default=N):
@@ -317,7 +318,7 @@ You have new mail in /var/spool/mail/gpadmin
 20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-   Mirror Active, Primary Available   Synchronized   sdw1      /data/primary/gpseg0   6000   sdw2     /data/mirror/gpseg0   7000
 20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw2      /data/primary/gpseg1   6000   sdw3     /data/mirror/gpseg1   7000
 20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw3      /data/primary/gpseg2   6000   sdw4     /data/mirror/gpseg2   7000
-20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   sdw1     /data/mirror/gpseg3   6001
+20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   sdw1     /data/mirror/gpseg3   7000
 20240110:13:38:42:014714 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
 20240110:13:38:42:014714 gpstate:mdw:gpadmin-[WARNING]:-1 segment(s) configured as mirror(s) are acting as primaries
 [gpadmin@mdw gpconfigs]$
@@ -431,6 +432,6 @@ sdw2 (dbid 6): no rewind required
 20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw1      /data/primary/gpseg0   6000   sdw2     /data/mirror/gpseg0   7000
 20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw2      /data/primary/gpseg1   6000   sdw3     /data/mirror/gpseg1   7000
 20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw3      /data/primary/gpseg2   6000   sdw4     /data/mirror/gpseg2   7000
-20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   sdw1     /data/mirror/gpseg3   6001
+20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   sdw1     /data/mirror/gpseg3   7000
 20240110:13:41:48:017334 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
 [gpadmin@mdw gpconfigs]$
