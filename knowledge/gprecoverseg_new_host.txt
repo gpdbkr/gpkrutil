@@ -2,10 +2,15 @@ Greenplum Segment Node H/W가 장시간 장애 났을 때 여유 장비로 전�
 
 1. 개요
   1) Greenplum 세그먼트 노드 H/W가 장시간 장애 났을 경우, 미러를 새로운 H/W에 구성
+
   2) 방법
      - 호스트별 미러 재구성   : gprecoverseg -p newhost
+       * 타겟 Port 번호가 자동으로 채번되기 때문에  "Y" 선택전에 반드시 확인 필요
+       * 사용법은 편리하나, 이 방식보다는 인스턴스 미러 재구성 방식을 권
      - 인스턴스별 미러 재구성  : gprecoverseg -i recover_config_file
        * 인스턴스 재구성으로는 같은 호스트에서 경로 변경도 가능
+       * 기존 사용하던 Port를 그대로 사용할 수 있음(메뉴얼 작업)
+       => 실제 필요할 경우 인스턴스별 미러 재구성 사용하는 것을 권고**
   3) 참고 링크
      - https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/utility_guide-ref-gprecoverseg.html
   4) 현재 시스템 구성
@@ -32,7 +37,7 @@ gpstate:mdw:gpadmin-[INFO]:-   Status                             Data State    
 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw1      /data/primary/gpseg0   6000   sdw2     /data/mirror/gpseg0   7000
 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw2      /data/primary/gpseg1   6000   sdw3     /data/mirror/gpseg1   7000
 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw3      /data/primary/gpseg2   6000   sdw4     /data/mirror/gpseg2   7000
-gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   sdw1     /data/mirror/gpseg3   6001
+gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   sdw1     /data/mirror/gpseg3   7000
 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
 [gpadmin@mdw gpconfigs]$
 
@@ -111,7 +116,7 @@ gpstate:mdw:gpadmin-[WARNING]:-2 primary segment(s) are not synchronized
 20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance host        = smdw
 20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance address     = smdw
 20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance directory   = /data/mirror/gpseg3
-20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance port        = 6001
+20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:-   Recovery Target instance port        = 6001                         ###############<<<<<<<<<<<<<<<<<<<< port 주의 
 20240110:10:20:29:085016 gprecoverseg:mdw:gpadmin-[INFO]:----------------------------------------------------------
 
 Continue with segment recovery procedure Yy|Nn (default=N):
@@ -169,7 +174,7 @@ You have new mail in /var/spool/mail/gpadmin
 20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   smdw      /data/primary/gpseg0   6000   sdw2     /data/mirror/gpseg0   7000
 20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw2      /data/primary/gpseg1   6000   sdw3     /data/mirror/gpseg1   7000
 20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw3      /data/primary/gpseg2   6000   sdw4     /data/mirror/gpseg2   7000
-20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   smdw     /data/mirror/gpseg3   6001
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   smdw     /data/mirror/gpseg3   6001  ###<< 포트가 변경 됨.
 20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
 [gpadmin@mdw gpconfigs]$
 
@@ -204,7 +209,7 @@ Last login: Wed Jan 10 11:41:33 2024 from 172.16.65.140
 20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   smdw      /data/primary/gpseg0   6000   sdw2     /data/mirror/gpseg0   7000
 20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw2      /data/primary/gpseg1   6000   sdw3     /data/mirror/gpseg1   7000
 20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw3      /data/primary/gpseg2   6000   sdw4     /data/mirror/gpseg2   7000
-20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   smdw     /data/mirror/gpseg3   6001
+20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:-   Primary Active, Mirror Available   Synchronized   sdw4      /data/primary/gpseg3   6000   smdw     /data/mirror/gpseg3   6001    ###<< Port를 7000으로 원복할 예정임. 
 20240110:10:25:09:088912 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
 [gpadmin@mdw gpconfigs]$
 
@@ -226,7 +231,7 @@ smdw|6001|/data/mirror/gpseg3
 [gpadmin@mdw gpconfigs]$ vi recover_config_file
 [gpadmin@mdw gpconfigs]$ cat recover_config_file
 smdw|6000|/data/primary/gpseg0 sdw1|6000|/data/primary/gpseg0
-smdw|6001|/data/mirror/gpseg3 sdw1|6001|/data/mirror/gpseg3
+smdw|6001|/data/mirror/gpseg3 sdw1|7000|/data/mirror/gpseg3
 [gpadmin@mdw gpconfigs]$
 
 ##### recover_config_file 파일 참조하여 새로운 미러 구성
