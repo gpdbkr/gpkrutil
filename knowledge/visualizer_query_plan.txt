@@ -1,0 +1,4 @@
+https://tatiyants.com/pev/#/plans/new
+
+explain (analyze, format json)
+SELECT * FROM AAA;
