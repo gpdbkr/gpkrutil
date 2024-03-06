@@ -40,3 +40,16 @@ arping -f -w 10 -s ${VIP} -U ${VIP_GW} -I ${ARPING_INTERFACE}
 su - gpadmin -c "gpstop -u'
 su - gpadmin -c "/usr/local/greenplum-db/bin/pgbouncer -d /data/master/pgbouncer/pgbouncer.ini
 ....
+
+....
+Authentication File 생성(Master Data Directory에 생성을 권장)
+[gpadmin@mdw gpseg-1]$ psql -tc "select '\"' || rolname || '\" \"' || case when rolpassword is null then '' else rolpassword end || '\"' from pg_authid;" > /data/master/gpseg-1/pgbouncer.user [gpadmin@mdw gpseg-1]$ cat /data/master/gpseg-1/pgbouncer.user
+"gpadmin" "md579384531a29f686b667c3d9f2e5af369" "gpmon" "md57c82458a0ddbc10ab0603a71cf09771f" "gpcc_basic" ""
+"gpcc_operator" ""
+"gpcc_operator_basic" "" "gpdbuser" "
+
+i--수동으로 계정 정보를 등록하는 경우
+(가) 암호 형식 "md5" + md5(password + username)
+(나) 수동 암호 생성 예제
+[gpadmin@mdw gpseg-1]$ echo -n "1234admin" | md5sum 45f2603610af569b6155c45067268c6b -
+
