@@ -1,0 +1,12 @@
+1. 비정상 세션의 session_id & con_id 확인
+2. pg_cancel_backend -> pg_terminate_backend() 순으로 세션 중지 시도 (각 명령당 1회 수행)
+3. 세션 정리되지 않으면 아래 절차 진행 
+4. seg alias 이용해서 segment 서버만 접속
+5. con_id를 이용하여 segment 서버의 비정상 세션 프로세스 kill
+$ ps -ef | grep postgres | grep -v grep | grep con0000 | awk ‘{print $2}’ | xargs kill
+  5-1. kill 명령으로 정리되지 않는 경우 kill -11 시도한 경우 있음
+  5-2. 일부 segment 서버에만 프로세스가 남아있는 경우에는 해당 서버에 접속하여 kill -11로 개별 프로세스 정리
+6. segment 서버의 프로세스 정리 확인 후 master 서버의 프로세스 확인
+7. master 서버의 프로세스 남아있는 경우 pg_terminate_backend() 수행
+
+각 수행시 5분 마다의 시간 차이를 둠.
