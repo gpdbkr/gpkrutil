@@ -1,0 +1,26 @@
+
+1. Error
+client message : 
+java.lang.OutOfMemoryError: Java heap space
+
+log : 
+=====> <date> PXF Out of memory detected <====== =====> 
+<date> PXF shutdown scheduled <====== 
+=====> <date> Stopping PXF <======
+
+2. 조치 방법
+$vi $PXF_CONF/conf/pxf-env.sh
+
+before
+PXF_JVM_OPTS="-Xmx32g -Xms32g" 
+
+
+after
+export PXF_JVM_OPTS="-Xmx32g -Xms32g -XX:MaxGCPauseMillis=200 -XX:+UseG1GC -XX:ParallelGCThreads=20 -XX:ConcGCThreads=5 -XX:InitiatingHeapOccupancyPercent=70"
+
+$ pxf cluster sync
+$ pxf cluster stop
+$ pxf cluster start
+
+3. 상세 내용은 아래 링크 참조
+https://geartec82.atlassian.net/wiki/external/ODQ2Y2FiNWFmYTU4NGJiZDllNmJkM2EyMWNkMWI1ZWU
