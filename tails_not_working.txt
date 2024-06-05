@@ -1,6 +1,0 @@
-Rockey 8 또는 Redhat 8에서 Greenplum 6 설치 후 dstat 이 정상적으로 수행되지 않을 경우
-
-./crontool/run_sys_rsc.sh 파일에서 PYTHON 설정을 unset하고, PATH를 아래와 같이 설정 하면 됨.
-
-#ssh sdw$[i] "dstat -tcdnm  1 1" | tail -1 > "/tmp/rsc_sdw"$[i]".txt" &
-ssh sdw$[i] "unset LD_LIBRARY_PATH;unset PYTHONHOME;unset PYTHONPATH; export PATH=/usr/local/bin:/usr/bin; dstat -tcdnm 1 1" | tail -1 > "/tmp/rsc_sdw"$[i]".txt" &
