@@ -1,6 +1,9 @@
 ## system resource logging
 * * * * * /bin/bash /data/gpkrutil/crontool/cron_sys_rsc.sh 5 11 &
 
+## Committed_AS rate logging
+* * * * * /bin/bash /data/gpkrutil/crontool/cron_committed_as_rate.sh 5 11 &
+
 ## database logging
 * * * * * /bin/bash /data/gpkrutil/stattool/dostat 1 1 &
 
