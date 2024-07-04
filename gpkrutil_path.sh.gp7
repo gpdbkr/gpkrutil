@@ -13,7 +13,12 @@ export CRONLOG=${GPKRUTIL}/cronlog
 alias all='gpssh -f ${GPKRUTIL}/hostfile_all'
 alias seg='gpssh -f ${GPKRUTIL}/hostfile_seg'
 alias tails='ls  ${GPKRUTIL}/statlog/sys.202*.txt | tail -1 | xargs tail -f'
-alias statlog='cd /data/gpkrutil/statlog'
+alias tailc='ls  ${GPKRUTIL}/statlog/committed_as.202*.txt | tail -1 | xargs tail -f'
+alias statlog='cd ${GPKRUTIL}/statlog'
+alias scpall='${GPKRUTIL}/mngsys/scpall.sh'
+alias scpseg='${GPKRUTIL}/mngsys/scpseg.sh'
+alias sshall='${GPKRUTIL}/mngsys/sshall.sh'
+alias sshseg='${GPKRUTIL}/mngsys/sshseg.sh'
 
 ##########################################
 ####### Database alias for Greenplum 6 
