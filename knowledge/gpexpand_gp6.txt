@@ -1,4 +1,4 @@
-############### gpexpand 할때 주의 사항 ###############
+############### gpexpand 6.19+ 할때 주의 사항 ###############
 1. 카탈로그 vacuum full 사전 수행 
 - gpexpand 수행시(증설시)에 gpseg0의 카탈로그를 tar으로 묶어서 신규 세그먼트로 보내기 때문에 사이즈를 줄임.
 - gpexpand 수행시점에 vacuum full이 오래 걸리는 경우, timeout으로 에러 발생할 수 있기 때문에 사전 수행 필요
@@ -21,6 +21,40 @@
 5. 재분산 할 때 Restricted. Mode로 하면 절대 안됨. 
    --> 리벨런싱 수행시 에러 발생    
 
+6. gpexpand 작업시 에러 조치 
+  1) 리벨렁싱시 파일없거나 디렉토리가 없을 경우 
+      - 에러 메시지 
+        error 'ERROR:  could not open file "base/xxxxx/t_xxxx”: No such file or directory  (seg$num $ip:$port $pid)
+      - 원인 
+        * Master 카탈로그 정보(디렉토리)와 세그먼트 카탈로그 정보(디렉토리)가 불일치 하여 문제 발생
+        *  해당 원인은 Master에는 해당 경로가 존재 하나 세그먼트에 해당 디렉토리가 없는 경우
+      - 조치 방안 1)
+        * gpexpand 소스 수정 (v6.23.4)
+                cte_sql = """with table_size_cte(table_oid, size) as
+                (
+                 select table_oid, sum(size)
+                 from (
+                       select 
+                       oid as table_oid,
+                       pg_relation_size(oid) as size
+                  from gp_dist_random('pg_class')
+                       where oid >= %d and relstorage <> '%s'
+                       and relpersistence != 't' --<<<<<<<<<<<<<<<<<. temp 제외 추가 
+                ) x(table_oid, size)
+                   group by table_oid
+                )
+  2) gpexpand 수행시 Rollback이 되지 않을 경우 (v6.25)
+      - 원인
+         이미 증설이 되고 난 뒤에는 롤백을 할 수 없음.
+      - 해결 방법
+         * 만약 파일이 없어서 에러 떨어진 경우 해당 디렉토리에 touch <filename> 으로 빈 파일 생성 후 gpexpand 를 다시 실행
+         * 만약 DB가 stop 된 상태로 gpstart -a 가 수행되지 않을 경우에는 $MASTER_DATA_DIRECTORY/gpexpand.status 파일을 다른 경로로 move 후 gpstart 수행
+           gpstart 이후에 gpexpand.status 파일을  $MASTER_DATA_DIRECTORY 에 다시 move 하고 난뒤에 gpstate -e 가 정상일때 gpexpand를 다시 수행 
+      - 관련 아티클 경로
+      https://broadcomcms-software-agent.wolkenservicedesk.com/wolken/esd/knowledge-base-view/view-kb-article?articleNumber=296930&isLocationBackOnHome=true&hideTabs=true
+
+  3) Primary 인스턴스의 파일이 손상된 경우 
+      - Mirror 인스턴스의 파일을 primary 인스턴스의 파일로 SCP로 OS 레벨로 copy 후 리벨런싱 수행 
 
 ############### Greenplum 6.19. 미만의 gpexpand 방식 ###########
 1.Greenplum 6.19.0까지의 gpexpand 방식
