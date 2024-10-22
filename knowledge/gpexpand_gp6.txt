@@ -56,6 +56,13 @@
   3) Primary 인스턴스의 파일이 손상된 경우 
       - Mirror 인스턴스의 파일을 primary 인스턴스의 파일로 SCP로 OS 레벨로 copy 후 리벨런싱 수행 
 
+  4) 파티션 테이블에 대해서 리벨런싱이 성공했지만, 리벨런싱이 되지 않았을 경우 - 증설 처음 발생
+      - 리벨런싱 기본 커멘드 
+        alter table edu_sch.lineitem  EXPAND TABLE;
+      - 이슈 발생시 수행 커멘드
+        ALTER TABLE edu_sch.orders EXPAND PARTITION PREPARE;          --root 파티션에 커멘드 수행
+        ALTER TABLE edu_sch.orders_1_prt_p202201 EXPAND EXPAND TABLE; --수작업 또는 개별 파티션에서는 gpexpand를 다시 수행        
+
 ############### Greenplum 6.19. 미만의 gpexpand 방식 ###########
 1.Greenplum 6.19.0까지의 gpexpand 방식
 파티션단위가 아닌 테이블 단위로 리벨런싱 함.
