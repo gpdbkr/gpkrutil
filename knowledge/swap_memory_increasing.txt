@@ -1,0 +1,23 @@
+
+현상
+  - Greenplum에서 SWAP 메모리를 많이 사용하는 현상
+
+원인
+  - OS 권고 파라미터 가이드에 따라 sysctl.conf의 vm.swappiness = 10으로 설정하더라도
+    cgroupV1 /sys/fs/cgroup/memory/gpdb/memory.swappiness 값이 Default 60으로 설정됨.
+  - Greenplum Resource Group에서 OS 파라미터 보다 cgroup을 우선으로 하기 때문에 
+    sysctl.conf의 vm.swappiness = 10이 아닌,  /sys/fs/cgroup/memory/gpdb/memory.swappiness의 60을 사용
+
+조치 방안
+  - 모드 노드의 cgroup 설정 /sys/fs/cgroup/memory/memory.swappiness 를 10으로 설정하고 database를 리스타트를 함.
+
+파라미터 확인
+=> cat /sys/fs/cgroup/memory/gpdb/memory.swappiness
+[sdw1] 10
+[sdw2] 10
+[ mdw] 10  
+
+
+참고
+https://docs.redhat.com/ko/documentation/red_hat_enterprise_linux/8/html/8.7_release_notes/bug-fix_kernel
+
