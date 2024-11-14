@@ -1,0 +1,41 @@
+
+두 라인이 한 라인으로 변경이 필요할 경우
+
+$ perl  -pe 'BEGIN{undef $/;} s,\n^    ADD CONSTRAINT, ADD CONSTRAINT,smg' pk.sql
+
+
+ORG File 
+[gpadmin@gp46s mig]$ cat pk.sql
+
+ALTER TABLE ONLY part
+    ADD CONSTRAINT part_pkey PRIMARY KEY (p_partkey);
+
+
+ALTER TABLE ONLY region
+    ADD CONSTRAINT region_pkey PRIMARY KEY (r_regionkey);
+
+
+ALTER TABLE ONLY supplier
+    ADD CONSTRAINT supplier_pkey PRIMARY KEY (s_suppkey);
+[gpadmin@gp46s mig]$
+
+
+[gpadmin@gp46s mig]$  perl  -pe 'BEGIN{undef $/;} s,\n^    ADD CONSTRAINT, ADD CONSTRAINT,smg' pk.sql
+
+ALTER TABLE ONLY part ADD CONSTRAINT part_pkey PRIMARY KEY (p_partkey);
+
+
+
+ALTER TABLE ONLY region ADD CONSTRAINT region_pkey PRIMARY KEY (r_regionkey);
+
+
+
+ALTER TABLE ONLY supplier ADD CONSTRAINT supplier_pkey PRIMARY KEY (s_suppkey);
+[gpadmin@gp46s mig]$
+
+
+[gpadmin@gp46s mig]$  perl  -pe 'BEGIN{undef $/;} s,\n^    ADD CONSTRAINT, ADD CONSTRAINT,smg' pk.sql | grep -v "^$" | grep -v "^--"
+ALTER TABLE ONLY part ADD CONSTRAINT part_pkey PRIMARY KEY (p_partkey);
+ALTER TABLE ONLY region ADD CONSTRAINT region_pkey PRIMARY KEY (r_regionkey);
+ALTER TABLE ONLY supplier ADD CONSTRAINT supplier_pkey PRIMARY KEY (s_suppkey);
+[gpadmin@gp46s mig]$
