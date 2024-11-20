@@ -1,0 +1,413 @@
+아래의 정보를 제공하면 다른 사람이 쿼리 분석 및 튜닝하기에 편리함. 
+
+## 요청 정보 ##
+1. SQL 
+
+2. DDL  
+   - 5번 minirepro 를 수행하면 쿼리에 사용된 테이블 정보가 자동 추출 됨.
+
+3. Explain 
+   exlain SQL;
+
+4. Explain Analyze 
+   explain SQL:
+
+5. Table 통계 정보 확인 
+   sql 파일 형태
+     explain verbose
+     SQL
+   커멘드 
+   $ gpmt gpstatscheck -f SQL파일명 -d DB명
+   예시 
+   $ gpmt gpstatscheck -f test.sql.with.explain.verbose -d gpkrtpch
+
+6. 재현 테스트를 위한 DDL 및 통계 데이터 추출
+   - minirepro 수행하면, 테이블 DDL과 통계 정보 추출
+   커멘드 
+   $ minirepro DB명 -q SQL파일명 -f ./출력파일명.sql -U DB유저명
+   예시
+   $ minirepro gpkrtpch -q test.sql -f ./output.sql -U gpadmin
+
+################ 예시 ###############
+################ 1. SQL 
+[gpadmin@r8g6single query]$ cat test.sql
+SELECT t3.l_orderkey
+     , sum(t3.l_extendedprice * (1 - t3.l_discount)) as revenue
+     , t2.o_orderdate
+     , t2.o_shippriority
+  FROM gpkrtpch.customer t1
+     , gpkrtpch.orders   t2
+     , gpkrtpch.lineitem t3
+ WHERE t1.c_mktsegment = 'MACHINERY'
+   AND t1.c_custkey = t2.o_custkey
+   AND t3.l_orderkey = t2.o_orderkey
+   AND t2.o_orderdate < date '1995-03-15'
+   AND t3.l_shipdate  > date '1995-03-15'
+ GROUP BY t3.l_orderkey
+        , t2.o_orderdate
+	, t2.o_shippriority
+ ORDER BY revenue desc
+       , t2.o_orderdate
+ LIMIT 10;
+[gpadmin@r8g6single query]$ 
+
+
+
+################ 2. DDL
+   $ pg_dump -s --table=스키마.테이블명 -d DB명   
+   $ pg_dump -s --table=gpkrtpch.customer --table=gpkrtpch.orders --table=gpkrtpch.lineitem  -d  gpkrtpch > ddl.sql
+
+
+################ 3. explain 
+EXPLAIN
+SELECT t3.l_orderkey
+     , sum(t3.l_extendedprice * (1 - t3.l_discount)) as revenue
+     , t2.o_orderdate
+     , t2.o_shippriority
+  FROM gpkrtpch.customer t1
+     , gpkrtpch.orders   t2
+     , gpkrtpch.lineitem t3
+ WHERE t1.c_mktsegment = 'MACHINERY'
+   AND t1.c_custkey = t2.o_custkey
+   AND t3.l_orderkey = t2.o_orderkey
+   AND t2.o_orderdate < date '1995-03-15'
+   AND t3.l_shipdate  > date '1995-03-15'
+ GROUP BY t3.l_orderkey
+        , t2.o_orderdate
+	, t2.o_shippriority
+ ORDER BY revenue desc
+       , t2.o_orderdate
+ LIMIT 10;
+                                                                   QUERY PLAN
+-------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.00..8043.49 rows=5 width=24)
+   ->  Gather Motion 2:1  (slice2; segments: 2)  (cost=0.00..8043.49 rows=10 width=24)
+         Merge Key: (sum((lineitem.l_extendedprice * ('1'::numeric - lineitem.l_discount)))), orders.o_orderdate
+         ->  Limit  (cost=0.00..8043.48 rows=5 width=24)
+               ->  Sort  (cost=0.00..8043.48 rows=1302925 width=24)
+                     Sort Key: (sum((lineitem.l_extendedprice * ('1'::numeric - lineitem.l_discount)))), orders.o_orderdate
+                     ->  HashAggregate  (cost=0.00..4441.89 rows=1302925 width=24)
+                           Group Key: orders.o_orderdate, lineitem.l_orderkey, orders.o_shippriority
+                           ->  Hash Join  (cost=0.00..3944.79 rows=1302925 width=28)
+                                 Hash Cond: (lineitem.l_orderkey = orders.o_orderkey)
+                                 ->  Sequence  (cost=0.00..1473.72 rows=6919639 width=24)
+                                       ->  Partition Selector for lineitem (dynamic scan id: 2)  (cost=10.00..100.00 rows=50 width=4)
+                                             Partitions selected: 19 (out of 22)
+                                       ->  Dynamic Seq Scan on lineitem (dynamic scan id: 2)  (cost=0.00..1473.72 rows=6919639 width=24)
+                                             Filter: (l_shipdate > '1995-03-15'::date)
+                                 ->  Hash  (cost=1005.38..1005.38 rows=110292 width=16)
+                                       ->  Hash Join  (cost=0.00..1005.38 rows=110292 width=16)
+                                             Hash Cond: (orders.o_custkey = customer.c_custkey)
+                                             ->  Sequence  (cost=0.00..481.20 rows=363015 width=20)
+                                                   ->  Partition Selector for orders (dynamic scan id: 1)  (cost=10.00..100.00 rows=50 width=4)
+                                                         Partitions selected: 5 (out of 22)
+                                                   ->  Dynamic Seq Scan on orders (dynamic scan id: 1)  (cost=0.00..481.20 rows=363015 width=20)
+                                                         Filter: (o_orderdate < '1995-03-15'::date)
+                                             ->  Hash  (cost=444.80..444.80 rows=29810 width=4)
+                                                   ->  Broadcast Motion 2:2  (slice1; segments: 2)  (cost=0.00..444.80 rows=29810 width=4)
+                                                         ->  Seq Scan on customer  (cost=0.00..441.68 rows=14905 width=4)
+                                                               Filter: (c_mktsegment = 'MACHINERY'::bpchar)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(28 rows)
+
+Time: 80.033 ms
+gpkrtpch=#
+
+
+################ 4.Explain Analyze 
+EXPLAIN ANALYZE
+SELECT t3.l_orderkey
+     , sum(t3.l_extendedprice * (1 - t3.l_discount)) as revenue
+     , t2.o_orderdate
+     , t2.o_shippriority
+  FROM gpkrtpch.customer t1
+     , gpkrtpch.orders   t2
+     , gpkrtpch.lineitem t3
+ WHERE t1.c_mktsegment = 'MACHINERY'
+   AND t1.c_custkey = t2.o_custkey
+   AND t3.l_orderkey = t2.o_orderkey
+   AND t2.o_orderdate < date '1995-03-15'
+   AND t3.l_shipdate  > date '1995-03-15'
+ GROUP BY t3.l_orderkey
+        , t2.o_orderdate
+	, t2.o_shippriority
+ ORDER BY revenue desc
+       , t2.o_orderdate
+ LIMIT 10;
+                                                                                            QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.00..8043.49 rows=5 width=24) (actual time=5624.386..5624.395 rows=10 loops=1)
+   ->  Gather Motion 2:1  (slice2; segments: 2)  (cost=0.00..8043.49 rows=10 width=24) (actual time=5624.383..5624.389 rows=10 loops=1)
+         Merge Key: (sum((lineitem.l_extendedprice * ('1'::numeric - lineitem.l_discount)))), orders.o_orderdate
+         ->  Limit  (cost=0.00..8043.48 rows=5 width=24) (actual time=5265.453..5265.460 rows=10 loops=1)
+               ->  Sort  (cost=0.00..8043.48 rows=1302925 width=24) (actual time=5265.453..5265.453 rows=10 loops=1)
+                     Sort Key: (sum((lineitem.l_extendedprice * ('1'::numeric - lineitem.l_discount)))), orders.o_orderdate
+                     Sort Method:  top-N heapsort  Memory: 18kB
+                     ->  HashAggregate  (cost=0.00..4441.89 rows=1302925 width=24) (actual time=5577.257..5600.689 rows=72816 loops=1)
+                           Group Key: orders.o_orderdate, lineitem.l_orderkey, orders.o_shippriority
+                           Extra Text: (seg1)   Hash chain length 4.5 avg, 14 max, using 16189 of 16384 buckets; total 9 expansions.
+
+                           ->  Hash Join  (cost=0.00..3944.79 rows=1302925 width=28) (actual time=1078.890..4923.866 rows=430232 loops=1)
+                                 Hash Cond: (lineitem.l_orderkey = orders.o_orderkey)
+                                 Extra Text: (seg0)   Hash chain length 1.1 avg, 5 max, using 63344 of 262144 buckets.
+                                 ->  Sequence  (cost=0.00..1473.72 rows=6919639 width=24) (actual time=0.433..3598.514 rows=6790310 loops=1)
+                                       ->  Partition Selector for lineitem (dynamic scan id: 2)  (cost=10.00..100.00 rows=50 width=4) (never executed)
+                                             Partitions selected: 19 (out of 22)
+                                       ->  Dynamic Seq Scan on lineitem (dynamic scan id: 2)  (cost=0.00..1473.72 rows=6919639 width=24) (actual time=0.421..3219.731 rows=6790310 loops=1)
+                                             Filter: (l_shipdate > '1995-03-15'::date)
+                                             Partitions scanned:  Avg 19.0 (out of 22) x 2 workers.  Max 19 parts (seg0).
+                                 ->  Hash  (cost=1005.38..1005.38 rows=110292 width=16) (actual time=933.285..933.285 rows=72816 loops=1)
+                                       ->  Hash Join  (cost=0.00..1005.38 rows=110292 width=16) (actual time=19.871..908.084 rows=72816 loops=1)
+                                             Hash Cond: (orders.o_custkey = customer.c_custkey)
+                                             Extra Text: (seg1)   Hash chain length 1.1 avg, 4 max, using 28298 of 262144 buckets.
+                                             ->  Sequence  (cost=0.00..481.20 rows=363015 width=20) (actual time=2.871..511.712 rows=363677 loops=1)
+                                                   ->  Partition Selector for orders (dynamic scan id: 1)  (cost=10.00..100.00 rows=50 width=4) (never executed)
+                                                         Partitions selected: 5 (out of 22)
+                                                   ->  Dynamic Seq Scan on orders (dynamic scan id: 1)  (cost=0.00..481.20 rows=363015 width=20) (actual time=2.854..489.542 rows=363677 loops=1)
+                                                         Filter: (o_orderdate < '1995-03-15'::date)
+                                                         Partitions scanned:  Avg 5.0 (out of 22) x 2 workers.  Max 5 parts (seg0).
+                                             ->  Hash  (cost=444.80..444.80 rows=29810 width=4) (actual time=16.223..16.223 rows=29949 loops=1)
+                                                   ->  Broadcast Motion 2:2  (slice1; segments: 2)  (cost=0.00..444.80 rows=29810 width=4) (actual time=0.080..11.278 rows=29949 loops=1)
+                                                         ->  Seq Scan on customer  (cost=0.00..441.68 rows=14905 width=4) (actual time=0.013..11.655 rows=15053 loops=1)
+                                                               Filter: (c_mktsegment = 'MACHINERY'::bpchar)
+ Planning time: 150.990 ms
+   (slice0)    Executor memory: 271K bytes.
+   (slice1)    Executor memory: 58K bytes avg x 2 workers, 58K bytes max (seg0).
+ * (slice2)    Executor memory: 34673K bytes avg x 2 workers, 34737K bytes max (seg1).  Work_mem: 2845K bytes max, 1708K bytes wanted.
+ Memory used:  128000kB
+ Memory wanted:  8128kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 5632.236 ms
+(42 rows)
+
+Time: 5785.769 ms
+gpkrtpch=#
+
+
+################ 5.Table 통계 정보 확인 
+[gpadmin@r8g6single query]$ cat test_with_explain_verbose.sql
+EXPLAIN VERBOSE
+SELECT t3.l_orderkey
+     , sum(t3.l_extendedprice * (1 - t3.l_discount)) as revenue
+     , t2.o_orderdate
+     , t2.o_shippriority
+  FROM gpkrtpch.customer t1
+     , gpkrtpch.orders   t2
+     , gpkrtpch.lineitem t3
+ WHERE t1.c_mktsegment = 'MACHINERY'
+   AND t1.c_custkey = t2.o_custkey
+   AND t3.l_orderkey = t2.o_orderkey
+   AND t2.o_orderdate < date '1995-03-15'
+   AND t3.l_shipdate  > date '1995-03-15'
+ GROUP BY t3.l_orderkey
+        , t2.o_orderdate
+	, t2.o_shippriority
+ ORDER BY revenue desc
+       , t2.o_orderdate
+ LIMIT 10;
+
+[gpadmin@r8g6single query]$
+
+
+[gpadmin@r8g6single query]$ gpmt gpstatscheck -f test_with_explain_verbose.sql -d gpkrtpch
+Executing EXPLAIN VERBOSE query.
+Found 47 tables in query.
+
+                      Table Details
+--------------------------------------------------------
+| Table Name                    | Info                 |
+--------------------------------+-----------------------
+| gpkrtpch.customer              |                      |
+| gpkrtpch.lineitem_1_prt_p1992  |                      |
+| gpkrtpch.lineitem_1_prt_p1993  |                      |
+| gpkrtpch.lineitem_1_prt_p1994  |                      |
+| gpkrtpch.lineitem_1_prt_p1995  |                      |
+| gpkrtpch.lineitem_1_prt_p1996  |                      |
+| gpkrtpch.lineitem_1_prt_p1997  |                      |
+| gpkrtpch.lineitem_1_prt_p1998  |                      |
+| gpkrtpch.lineitem_1_prt_p1999  |                      |
+| gpkrtpch.lineitem_1_prt_p2001  |                      |
+| gpkrtpch.lineitem_1_prt_p2002  |                      |
+| gpkrtpch.lineitem_1_prt_p2003  |                      |
+| gpkrtpch.lineitem_1_prt_p2004  |                      |
+| gpkrtpch.lineitem_1_prt_p2005  |                      |
+| gpkrtpch.lineitem_1_prt_p2006  |                      |
+| gpkrtpch.lineitem_1_prt_p2007  |                      |
+| gpkrtpch.lineitem_1_prt_p2008  |                      |
+| gpkrtpch.lineitem_1_prt_p2009  |                      |
+| gpkrtpch.lineitem_1_prt_p2010  |                      |
+| gpkrtpch.lineitem_1_prt_p2011  |                      |
+| gpkrtpch.lineitem_1_prt_p2012  |                      |
+| gpkrtpch.lineitem_1_prt_p2013  |                      |
+| gpkrtpch.lineitem_1_prt_pother |                      |
+| gpkrtpch.lineitem              | Top Level Partition  |
+| gpkrtpch.orders_1_prt_p1992    |                      |
+| gpkrtpch.orders_1_prt_p1993    |                      |
+| gpkrtpch.orders_1_prt_p1994    |                      |
+| gpkrtpch.orders_1_prt_p1995    |                      |
+| gpkrtpch.orders_1_prt_p1996    |                      |
+| gpkrtpch.orders_1_prt_p1997    |                      |
+| gpkrtpch.orders_1_prt_p1998    |                      |
+| gpkrtpch.orders_1_prt_p1999    |                      |
+| gpkrtpch.orders_1_prt_p2001    |                      |
+| gpkrtpch.orders_1_prt_p2002    |                      |
+| gpkrtpch.orders_1_prt_p2003    |                      |
+| gpkrtpch.orders_1_prt_p2004    |                      |
+| gpkrtpch.orders_1_prt_p2005    |                      |
+| gpkrtpch.orders_1_prt_p2006    |                      |
+| gpkrtpch.orders_1_prt_p2007    |                      |
+| gpkrtpch.orders_1_prt_p2008    |                      |
+| gpkrtpch.orders_1_prt_p2009    |                      |
+| gpkrtpch.orders_1_prt_p2010    |                      |
+| gpkrtpch.orders_1_prt_p2011    |                      |
+| gpkrtpch.orders_1_prt_p2012    |                      |
+| gpkrtpch.orders_1_prt_p2013    |                      |
+| gpkrtpch.orders_1_prt_pother   |                      |
+| gpkrtpch.orders                | Top Level Partition  |
+--------------------------------+-----------------------
+
+Note: Views and External Tables will be skipped since they do not have statistics.
+Note: Top Level Partitions will be skipped since Legacy Query Optimizer does not use the statistics.
+
+OK to execute "SELECT count(*)" on tables listed above? Yy|Nn: y
+
+Executing count(*) to get actual tuple counts:
+ -> gpkrtpch.customer              ... done
+ -> gpkrtpch.lineitem_1_prt_p1992  ... done
+ -> gpkrtpch.lineitem_1_prt_p1993  ... done
+ -> gpkrtpch.lineitem_1_prt_p1994  ... done
+ -> gpkrtpch.lineitem_1_prt_p1995  ... done
+ -> gpkrtpch.lineitem_1_prt_p1996  ... done
+ -> gpkrtpch.lineitem_1_prt_p1997  ... done
+ -> gpkrtpch.lineitem_1_prt_p1998  ... done
+ -> gpkrtpch.lineitem_1_prt_p1999  ... done
+ -> gpkrtpch.lineitem_1_prt_p2001  ... done
+ -> gpkrtpch.lineitem_1_prt_p2002  ... done
+ -> gpkrtpch.lineitem_1_prt_p2003  ... done
+ -> gpkrtpch.lineitem_1_prt_p2004  ... done
+ -> gpkrtpch.lineitem_1_prt_p2005  ... done
+ -> gpkrtpch.lineitem_1_prt_p2006  ... done
+ -> gpkrtpch.lineitem_1_prt_p2007  ... done
+ -> gpkrtpch.lineitem_1_prt_p2008  ... done
+ -> gpkrtpch.lineitem_1_prt_p2009  ... done
+ -> gpkrtpch.lineitem_1_prt_p2010  ... done
+ -> gpkrtpch.lineitem_1_prt_p2011  ... done
+ -> gpkrtpch.lineitem_1_prt_p2012  ... done
+ -> gpkrtpch.lineitem_1_prt_p2013  ... done
+ -> gpkrtpch.lineitem_1_prt_pother ... done
+ -> gpkrtpch.lineitem              ... skip
+ -> gpkrtpch.orders_1_prt_p1992    ... done
+ -> gpkrtpch.orders_1_prt_p1993    ... done
+ -> gpkrtpch.orders_1_prt_p1994    ... done
+ -> gpkrtpch.orders_1_prt_p1995    ... done
+ -> gpkrtpch.orders_1_prt_p1996    ... done
+ -> gpkrtpch.orders_1_prt_p1997    ... done
+ -> gpkrtpch.orders_1_prt_p1998    ... done
+ -> gpkrtpch.orders_1_prt_p1999    ... done
+ -> gpkrtpch.orders_1_prt_p2001    ... done
+ -> gpkrtpch.orders_1_prt_p2002    ... done
+ -> gpkrtpch.orders_1_prt_p2003    ... done
+ -> gpkrtpch.orders_1_prt_p2004    ... done
+ -> gpkrtpch.orders_1_prt_p2005    ... done
+ -> gpkrtpch.orders_1_prt_p2006    ... done
+ -> gpkrtpch.orders_1_prt_p2007    ... done
+ -> gpkrtpch.orders_1_prt_p2008    ... done
+ -> gpkrtpch.orders_1_prt_p2009    ... done
+ -> gpkrtpch.orders_1_prt_p2010    ... done
+ -> gpkrtpch.orders_1_prt_p2011    ... done
+ -> gpkrtpch.orders_1_prt_p2012    ... done
+ -> gpkrtpch.orders_1_prt_p2013    ... done
+ -> gpkrtpch.orders_1_prt_pother   ... done
+ -> gpkrtpch.orders                ... skip
+
+                                            Stats Check Summary
+----------------------------------------------------------------------------------------------------------
+| Table Name                    | Actual           | Estimated        | Diff      | Comments             |
+--------------------------------+------------------+------------------+-----------+-----------------------
+| gpkrtpch.customer              |           150000 |           150408 |       408 | OK                   |
+| gpkrtpch.lineitem_1_prt_p1992  |           756352 |           756352 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p1993  |           908721 |           908721 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p1994  |           909455 |           909455 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p1995  |           914963 |           914963 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p1996  |           913487 |           913487 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p1997  |           911395 |           911395 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p1998  |           686842 |           686842 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p1999  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2001  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2002  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2003  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2004  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2005  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2006  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2007  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2008  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2009  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2010  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2011  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2012  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_p2013  |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem_1_prt_pother |                0 |                0 |         0 | OK                   |
+| gpkrtpch.lineitem              |                0 |                0 |         0 | Top Level Partition  |
+| gpkrtpch.orders_1_prt_p1992    |           227089 |           227089 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p1993    |           226645 |           226645 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p1994    |           227597 |           227597 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p1995    |           228637 |           228637 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p1996    |           228626 |           228626 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p1997    |           227783 |           227783 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p1998    |           133623 |           133623 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p1999    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2001    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2002    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2003    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2004    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2005    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2006    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2007    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2008    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2009    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2010    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2011    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2012    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_p2013    |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders_1_prt_pother   |                0 |                0 |         0 | OK                   |
+| gpkrtpch.orders                |                0 |                0 |         0 | Top Level Partition  |
+--------------------------------+------------------+------------------+-----------+-----------------------
+
+Execution finished successfully!
+
+
+################ 6.재현 테스트를 위한 DDL 및 통계 데이터 추출
+
+[gpadmin@r8g6single query]$ minirepro gpkrtpch -q test.sql -f ./output_test.sql -U gpadmin
+Connecting to database: host=r8g6single, port=5432, user=gpadmin, db=gpkrtpch ...
+Extracting metadata from query file test.sql ...
+psql gpkrtpch --pset footer --no-psqlrc -Atq -h r8g6single -p 5432 -U gpadmin -f /tmp/20241030225805/toolkit.sql
+Invoking pg_dump to dump DDL ...
+pg_dump -h r8g6single -p 5432 -U gpadmin -sxO gpkrtpch --relation-oids 25545,24626,24629,24636,24645,24654,24663,24672,24681,24690,24699,24708,24717,24726,24735,24744,24753,24762,24771,24780,24789,24798,24807,24816,24825,24834,24841,24850,24859,24868,24877,24886,24895,24904,24913,24922,24931,24940,24949,24958,24967,24976,24985,24994,25003,25012,25021,25030 --function-oids 0 -f /tmp/20241030225805/pg_dump_out.sql
+Writing schema DDLs ...
+Writing relation and function DDLs ...
+Writing table statistics ...
+Writing column statistics ...
+Attaching raw query text ...
+--- MiniRepro completed! ---
+WARNING: This tool collects statistics about your data, including most common values, which requires some data elements to be included in the output file.
+Please review output file to ensure it is within corporate policy to transport the output file.
+[gpadmin@r8g6single query]$ cat ./output_test.sql | more
+-- MiniRepro 1.13
+-- Copyright (C) 2007 - 2016 Pivotal
+-- Database: gpkrtpch
+-- Date:     2024-10-30
+-- Time:     22:58:05.526302
+-- CmdLine:  /usr/local/greenplum-db-6.24.6/bin/minirepro gpkrtpch -q test.sql -f ./output_test.sql -U gpadmin
+-- Version:  PostgreSQL 9.4.26 (Greenplum Database 6.24.6 build commit:65583e9f5cccae53d49944762bb1ab1302647321) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 8.5.0 20210514 (Red Hat 8.5.0-18), 64-bit compiled on Jun 29 2023
+06:10:19
+
+\connect gpkrtpch
+
+set optimizer to off;
+
+CREATE SCHEMA gpkrtpch;
+--
+-- Greenplum Database database dump
+--
+
