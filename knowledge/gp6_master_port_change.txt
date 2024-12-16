@@ -1,0 +1,183 @@
+
+Greenplum 마스터 노드 Port 변경
+  - 이미 설치된 Greenplum 클러스터에서 마스터 port 변경 절차
+  - https://knowledge.broadcom.com/external/article?articleNumber=296803
+
+1. 테스트 환경
+   - Greenplum Version: Greenplum 6.x
+   - 2 Master nodes, 4 Segment nodes
+
+
+2. 변경할 설정
+  1) DB 설정 파일 변경 ( Master node/ Standby Master node) 
+     $ vi $MASTER_DATA_DIRECTORY/postgresql.conf 
+     - port=5432 ##port 5432 ==> port=5433
+  2) DB 환경 변경 
+     =# select * from gp_segment_configuration ;
+     - gp_segment_configuration.port 5432 => 5433
+  3) DB 접속 환경 변경
+     $ vi ~/.bashrc
+     export PGPORT=5433   
+
+3. Greenplum Master Port 변경
+  1) 현재 DB 환경 확인
+[gpadmin@mdw gpseg-1]$ psql
+Timing is on.
+psql (9.4.26)
+Type "help" for help.
+
+gpadmin=# select * from gp_segment_configuration order by 1;
+ dbid | content | role | preferred_role | mode | status | port | hostname | address |       datadir
+------+---------+------+----------------+------+--------+------+----------+---------+----------------------
+    1 |      -1 | p    | p              | n    | u      | 5432 | mdw      | mdw     | /data/master/gpseg-1
+    2 |       0 | p    | p              | n    | u      | 6000 | sdw1     | sdw1    | /data/primary/gpseg0
+    3 |       1 | p    | p              | n    | u      | 6000 | sdw2     | sdw2    | /data/primary/gpseg1
+    4 |       2 | p    | p              | n    | u      | 6000 | sdw3     | sdw3    | /data/primary/gpseg2
+    5 |       3 | p    | p              | n    | u      | 6000 | sdw4     | sdw4    | /data/primary/gpseg3
+    6 |       0 | m    | m              | n    | u      | 7000 | sdw2     | sdw2    | /data/mirror/gpseg0
+    7 |       1 | m    | m              | n    | u      | 7000 | sdw3     | sdw3    | /data/mirror/gpseg1
+    8 |       2 | m    | m              | n    | u      | 7000 | sdw4     | sdw4    | /data/mirror/gpseg2
+    9 |       3 | m    | m              | n    | u      | 7000 | sdw1     | sdw1    | /data/mirror/gpseg3
+   10 |      -1 | m    | m              | s    | u      | 5432 | smdw     | smdw    | /data/master/gpseg-1
+(10 rows)
+
+Time: 3.192 ms
+gpadmin=#
+
+   2) DB stop
+[gpadmin@mdw gpseg-1]$ gpstop -af
+
+   3) Greenplum 환경 설정 파일 port 변경 ($MASTER_DATA_DIRECTORY/postgresql.conf ) 
+[gpadmin@mdw gpseg-1]$ grep 5432 $MASTER_DATA_DIRECTORY/postgresql.conf
+port=5432 ##port 5432       # sets the database listener port for
+[gpadmin@mdw gpseg-1]$ vi $MASTER_DATA_DIRECTORY/postgresql.conf  ## change port from 5432 to 5433
+[gpadmin@mdw gpseg-1]$ grep 5433 $MASTER_DATA_DIRECTORY/postgresql.conf
+port=5433 ##port 5433       # sets the database listener port for
+[gpadmin@mdw gpseg-1]$ ssh smdw
+[gpadmin@smdw ~]$ vi $MASTER_DATA_DIRECTORY/postgresql.conf       ## change port from 5432 to 5433
+[gpadmin@smdw ~]$ grep 5433 $MASTER_DATA_DIRECTORY/postgresql.conf
+port=5433 ##port 5433       # sets the database listener port for
+[gpadmin@smdw ~]$
+
+
+   4)DB start
+[gpadmin@mdw gpseg-1]$ gpstart -a
+
+   5) DB 설정 테이블의 포트 변경 (gp_segment_configuration)
+[gpadmin@mdw gpseg-1]$ psql -p 5433
+Timing is on.
+psql (9.4.26)
+Type "help" for help.
+
+gpadmin=# begin;
+BEGIN
+Time: 0.686 ms
+gpadmin=# set allow_system_table_mods=true;
+SET
+Time: 13.477 ms
+gpadmin=# UPDATE gp_segment_configuration SET port=5433 WHERE port=5432 and content = -1;
+UPDATE 2
+Time: 10.805 ms
+gpadmin=# select * from gp_segment_configuration where content=-1;
+ dbid | content | role | preferred_role | mode | status | port | hostname | address |       datadir
+------+---------+------+----------------+------+--------+------+----------+---------+----------------------
+    1 |      -1 | p    | p              | n    | u      | 5433 | mdw      | mdw     | /data/master/gpseg-1
+   10 |      -1 | m    | m              | s    | u      | 5433 | smdw     | smdw    | /data/master/gpseg-1
+(2 rows)
+
+Time: 2.368 ms
+gpadmin=# commit;
+COMMIT
+Time: 1.953 ms
+gpadmin=#
+gpadmin=# create table public.test ( a int);
+NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'a' as the Greenplum Database data distribution key for this table.
+HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
+CREATE TABLE
+Time: 31.949 ms
+gpadmin=# insert into public.test select i from generate_series(1, 100) i;
+INSERT 0 100
+Time: 17.722 ms
+gpadmin=# select count(*) from public.test;
+ count
+-------
+   100
+(1 row)
+
+Time: 5.914 ms
+gpadmin=# \q
+
+   5) Greenplum 접속 port 설정 변경 (~/.bashrc) 
+
+[gpadmin@mdw gpseg-1]$ psql
+psql: could not connect to server: 그런 파일이나 디렉터리가 없습니다       ## port 변경되었기 때문에, 새로운 port로 접속 필요
+  Is the server running locally and accepting
+  connections on Unix domain socket "/tmp/.s.PGSQL.5432"?
+
+[gpadmin@mdw gpseg-1]$ psql -p 5433
+Timing is on.
+psql (9.4.26)
+Type "help" for help.
+
+gpadmin=# \q
+[gpadmin@mdw gpseg-1]$
+[gpadmin@mdw gpseg-1]$ vi ~/.bashrc
+export PGPORT=5433            ## port 설정이 없으면 5432접속, port 번호 변경시 PGPORT 환경 설정 
+[gpadmin@mdw gpseg-1]$ source ~/.bashrc
+[gpadmin@mdw gpseg-1]$ psql
+Timing is on.
+psql (9.4.26)
+Type "help" for help.
+
+gpadmin=# show port;
+ port
+------
+ 5433
+(1 row)
+
+Time: 0.885 ms
+gpadmin=# select count(*) From public.test;
+ count
+-------
+   100
+(1 row)
+
+Time: 30.654 ms
+gpadmin=# \q
+
+   6) Greenplum 상태 확인  
+
+[gpadmin@mdw gpseg-1]$ gpstate -f
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:-Starting gpstate with args: -f
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.23.3 build commit:0eb759d759987e82ba3bf910b89ed3057bad0416'
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.23.3 build commit:0eb759d759987e82ba3bf910b89ed3057bad0416) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Mar  3 2023 21:50:52'
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:-Standby master details
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:-----------------------
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:-   Standby address          = smdw
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:-   Standby data directory   = /data/master/gpseg-1
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:-   Standby port             = 5433
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:-   Standby PID              = 110197
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:-   Standby status           = Standby host passive
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:--pg_stat_replication
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:-No entries found.
+20241216:10:27:59:037230 gpstate:mdw:gpadmin-[INFO]:--------------------------------------------------------------
+[gpadmin@mdw gpseg-1]$ gpstate -e
+20241216:10:28:15:037479 gpstate:mdw:gpadmin-[INFO]:-Starting gpstate with args: -e
+20241216:10:28:15:037479 gpstate:mdw:gpadmin-[INFO]:-local Greenplum Version: 'postgres (Greenplum Database) 6.23.3 build commit:0eb759d759987e82ba3bf910b89ed3057bad0416'
+20241216:10:28:15:037479 gpstate:mdw:gpadmin-[INFO]:-master Greenplum Version: 'PostgreSQL 9.4.26 (Greenplum Database 6.23.3 build commit:0eb759d759987e82ba3bf910b89ed3057bad0416) on x86_64-unknown-linux-gnu, compiled by gcc (GCC) 6.4.0, 64-bit compiled on Mar  3 2023 21:50:52'
+20241216:10:28:15:037479 gpstate:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20241216:10:28:15:037479 gpstate:mdw:gpadmin-[INFO]:-Gathering data from segments...
+20241216:10:28:15:037479 gpstate:mdw:gpadmin-[INFO]:-----------------------------------------------------
+20241216:10:28:15:037479 gpstate:mdw:gpadmin-[INFO]:-Segment Mirroring Status Report
+20241216:10:28:15:037479 gpstate:mdw:gpadmin-[INFO]:-----------------------------------------------------
+20241216:10:28:15:037479 gpstate:mdw:gpadmin-[INFO]:-All segments are running normally
+[gpadmin@mdw gpseg-1]$
+
+
+4. 기타 사항
+   1) 세그먼트 port 변경시 (broadcom knowledge 참조)
+      - https://knowledge.broadcom.com/external/article?articleNumber=382981
+

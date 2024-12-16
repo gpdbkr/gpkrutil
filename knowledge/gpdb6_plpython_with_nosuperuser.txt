@@ -74,8 +74,10 @@ pl/python으로 함수를 만들면, In-DB 분석을 할 수 있을 뿐만 아�
    Timing is on.psql (9.4.26)Type "help" for help.
    gpkrtpch=>CREATE FUNCTION pymax. (a integer, b integer)
              RETURNS integer
-             AS $$ if a > b:  
-             return a return b
+             AS $$ 
+             if a > b:  
+                return a 
+             return b
              $$ LANGUAGE plpythonu;
    CREATE FUNCTION
    Time: 53.240 ms
