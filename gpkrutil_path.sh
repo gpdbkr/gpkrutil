@@ -84,3 +84,11 @@ alias pxfreset='/usr/local/greenplum-db/pxf/bin/pxf cluster reset'
 ######## ipcclean
 ###########################
 alias ipcclean='ipcs -s | grep gpadmin | awk '\''{print "ipcrm -s " $2}'\'' | sh; ipcs -m | grep gpadmin | awk '\''{print "ipcrm -m " $2}'\'' | sh'
+
+###########################
+####### gpkrutil
+###########################
+alias scpall='$GPKRUTIL/mngsys/scpall.sh'
+alias scpseg='$GPKRUTIL/mngsys/scpseg.sh'
+alias sshall='$GPKRUTIL/mngsys/sshall.sh'
+alias sshseg='$GPKRUTIL/mngsys/sshseg.sh'
