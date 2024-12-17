@@ -58,6 +58,7 @@ alias rqs='psql  -c " select rsqname, rsqcountlimit cntlimit, rsqcountvalue cntv
 alias rga='psql -c "SELECT rolname, rsgname FROM pg_roles, pg_resgroup  WHERE pg_roles.rolresgroup=pg_resgroup.oid;"' ## Resource Group Assgined role
 alias rgc='psql -c "SELECT v01.groupname, v01.concurrency, v02.num_running, v02.num_queueing, v01.cpu_max_percent, v01.cpu_weight, v01.min_cost, v01.cpuset, v01.memory_limit, v01.IO_LIMIT FROM  gp_toolkit.gp_resgroup_config v01 JOIN   gp_toolkit.gp_resgroup_status v02   ON   v01.groupid = v02.groupid  ORDER BY V01.groupname; "' ## Resource Group Configuration
 alias rgs='psql -c " SELECT   v01.groupname, v01.CONCURRENCY, v02.num_running, v02.num_queueing, v03.avg_cpu_usage, v01.cpu_max_percent, v01.CPU_WEIGHT, v03.avg_mem_usage_mb FROM     gp_toolkit.gp_resgroup_config v01 JOIN     gp_toolkit.gp_resgroup_status v02 ON       v01.groupname = v02.groupname JOIN     (            SELECT   groupname, round(avg(cpu_usage), 1) avg_cpu_usage, round(avg(memory_usage), 1) avg_mem_usage_mb            FROM gp_toolkit.gp_resgroup_status_per_host  where hostname  like '\''%sdw%'\''          GROUP BY groupname         ) v03 ON       v01.groupname = v03.groupname  ORDER BY 1; "' ## Resource Group Configuration
+
 ###########################
 ####### pgbouncer 
 ###########################
