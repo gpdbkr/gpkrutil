@@ -53,3 +53,44 @@ pg_relation_size|
 계산사이즈 vs 실제 사이즈
 31,526,148 vs 32,997,376
 
+
+
+-- 함수를 이용한 압축율 확인 
+--https://knowledge.broadcom.com/external/article/296987/how-to-check-the-actual-size-of-an-ao-ta.html
+SELECT t1.nspname, t2.relname
+      , pg_relation_size(t1.nspname||'.'||t2.relname) tb_size
+      , get_ao_compression_ratio(t1.nspname||'.'||t2.relname) 
+FROM   pg_namespace t1
+JOIN   pg_class t2 
+ON     t1.oid = t2.relnamespace 
+WHERE  t1.nspname = 'gpkrtpch'
+AND    t2.relname LIKE 'orders_1_prt%'
+AND    t2.relkind ='r' ;
+
+
+
+nspname |relname            |tb_size |get_ao_compression_ratio|
+--------+-------------------+--------+------------------------+
+gpkrtpch|orders_1_prt_p1992 | 9580520|                    3.22|
+gpkrtpch|orders_1_prt_p1993 | 9556672|                    3.22|
+gpkrtpch|orders_1_prt_p1997 | 9618832|                    3.22|
+gpkrtpch|orders_1_prt_p1994 | 9607080|                    3.22|
+gpkrtpch|orders_1_prt_p1995 | 9952760|                    3.12|
+gpkrtpch|orders_1_prt_p1996 | 9658488|                    3.22|
+gpkrtpch|orders_1_prt_p1998 | 5597512|                    3.25|
+gpkrtpch|orders_1_prt_p1999 |19102944|                    3.23|
+gpkrtpch|orders_1_prt_p2001 | 9587808|                    3.23|
+gpkrtpch|orders_1_prt_p2009 | 9941272|                    3.13|
+gpkrtpch|orders_1_prt_p2010 | 9647584|                    3.22|
+gpkrtpch|orders_1_prt_p2011 | 9605712|                    3.22|
+gpkrtpch|orders_1_prt_p2012 | 5595352|                    3.25|
+gpkrtpch|orders_1_prt_p2013 |       0|                     1.0|
+gpkrtpch|orders_1_prt_p2002 | 9938888|                    3.13|
+gpkrtpch|orders_1_prt_p2003 | 9646008|                    3.22|
+gpkrtpch|orders_1_prt_p2004 | 9606120|                    3.22|
+gpkrtpch|orders_1_prt_p2005 | 5596144|                    3.25|
+gpkrtpch|orders_1_prt_p2006 | 9570992|                    3.23|
+gpkrtpch|orders_1_prt_p2007 | 9546784|                    3.23|
+gpkrtpch|orders_1_prt_p2008 | 9600424|                    3.22|
+gpkrtpch|orders_1_prt_pother|       0|                     1.0|
+
