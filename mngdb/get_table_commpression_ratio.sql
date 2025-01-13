@@ -1,6 +1,6 @@
 --Greenplum 6.x
 --압축된 테이블에 대해서 비압축시 사이즈 확인 
-
+--https://knowledge.broadcom.com/external/article?articleNumber=383993
 select sotailschemaname
       , sotailtablename
       , sotailtablesizedisk
