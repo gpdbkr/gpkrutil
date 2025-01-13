@@ -1,0 +1,89 @@
+1. gpcopy 
+  1) 설명 
+     - Greenplum 클러스터간 데이터 복제 유틸리티 (DB레벨, 테이블 레벨, 파티션 레벨)
+     - 데이터 노드간 복제 지원(데이터 포함 모든 노드간 통신이 되어야 함), 마스터간 복제 지원(마스터간 통신이 되어야 함) 
+  2) 제약 사항
+     - OS 커멘드 유틸리티로 OS gpadmin 계정으로 수행 됨.
+     - 마스터간 복제시에는 내부적으로 copy 커멘드를 사용하기 때문에 슈퍼유저 권한이 필요 (gpadmin 또는 다른 슈퍼유저 계정 필요)
+  3) 관련 링크
+     - https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-greenplum-data-copy-utility/2-7/greenplum-copy/gpcopy.html
+
+2. gpcopy 설치
+  1) 마스터 노드 설치 
+   - gpcopy-2.7.0.tar.gz 마스터 노드에 전송
+$ su - gpadmin 
+[gpadmin@mdw setup]$ tar zxvf gpcopy-2.7.0.tar.gz
+[gpadmin@mdw setup]$ cd gpcopy-2.7.0/ 
+[gpadmin@mdw gpcopy-2.7.0]$ cp gpcopy $GPHOME/bin/
+[gpadmin@mdw gpcopy-2.7.0]$ cp gpcopy_helper $GPHOME/bin/
+[gpadmin@mdw gpcopy-2.7.0]$ chmod 755 $GPHOME/bin/gpcopy
+[gpadmin@mdw gpcopy-2.7.0]$ chmod 755 $GPHOME/bin/gpcopy_helper
+
+  2) 세그먼트 노드 설치 
+[gpadmin@mdw gpcopy-2.7.0]$ vi hostfile_seg
+[gpadmin@mdw gpcopy-2.7.0]$ cat hostfile_seg
+sdw1
+sdw2
+sdw3
+sdw4
+[gpadmin@mdw gpcopy-2.7.0]$ gpscp -f hostfile_seg $GPHOME/bin/gpcopy_helper =:/usr/local/greenplum-db-6.23.3/bin/
+[gpadmin@mdw gpcopy-2.7.0]$ gpssh -f hostfile_seg 'chmod 755 /usr/local/greenplum-db-6.23.3/bin/gpcopy_helper'
+
+3. gpcopy 환경 설정
+   1) 소스(원격) 시스템 환경 설정 
+[gpadmin@remote gpseg-1]$ vi $MASTER_DATA_DIRECTORY/pg_hba.conf
+host all gpadmin 172.16.65.140/32 md5          ## 원격 서버의 마스터/스탠바이 마스터/VIP 추가 (3개 라인 추가)
+
+   2) 타겟(로컬) 시스템 환경 설정
+[gpadmin@mdw gpcopy-2.7.0]$ vi ~/.pgpass
+172.16.65.90:5432:*:gpadmin:changeme            ## gpcopy 이용시 내부적으로 postgres database로 인증을 하고, 사용자 database의 데이터를 추출 
+                                                ## 즉 2개 database에 접속이 필요 함.
+
+4. gpcopy 테스트 
+   1) 마스터를 이용한 복제(압축) - 내부적으로 copy 명령어 이용 (--on-segment-threshold 2는 마스터만 사용, Default는 -1: 소스/목적지 모두 병렬 처리 )
+[gpadmin@mdw gpcopy-2.7.0]$ gpcopy --source-host 172.16.65.90 --source-port 5432 --source-user gpadmin --dest-host 172.16.65.140  --dest-port 5432 --dest-user gpadmin  --include-table gpkrtpch.gpkrtpch.lineitem_1_prt_p1992 --dest-table gpkrtpch.gpkrtpch.lineitem_1_prt_p1992 --append --on-segment-threshold -2
+
+20241210:13:56:39 gpcopy:gpadmin:mdw:077198-[INFO]:-Total elapsed time: 25.103390091s
+20241210:13:56:39 gpcopy:gpadmin:mdw:077198-[INFO]:-Total transferred data 425.8MB, transfer rate 63.6GB/h
+
+   2) 마스터를 이용한 복제(비압축) - 내부적으로 copy 명령어 이용 (--on-segment-threshold 2는 마스터만 사용, Default는 -1: 소스/목적지 모두 병렬 처리 )
+
+[gpadmin@mdw gpcopy-2.7.0]$ gpcopy --source-host 172.16.65.90 --source-port 5432 --source-user gpadmin --dest-host 172.16.65.140  --dest-port 5432 --dest-user gpadmin  --include-table gpkrtpch.gpkrtpch.lineitem_1_prt_p1992 --dest-table gpkrtpch.gpkrtpch.lineitem_1_prt_p1992 --append --on-segment-threshold -2 --no-compression
+
+20241210:13:59:46 gpcopy:gpadmin:mdw:079959-[INFO]:-Total elapsed time: 29.994425849s
+20241210:13:59:46 gpcopy:gpadmin:mdw:079959-[INFO]:-Total transferred data 425.8MB, transfer rate 52GB/h
+
+
+5. gpcopy 옵션. 
+   1) --on-segment-threshold : gpcopy시 수행되는 인스턴스 수 
+      * default : -1 : 소스/목적지 모든 인스턴스로 동시 수행 
+      * -2: 마스터 인스터스만 수행
+      * 0보다 큰 정수: 정수만큼의 인스턴스로 수행 
+   2) --no-compression
+      * 네트워크 전송하는 동안 압축 여부 
+      * default는 압축해서 전송
+      * 파라미터 적용시 네트워크 전송시 압축하지 않음. 
+      * 같은 호스트에서 copy하는 경우에는 압축하지 않음.
+
+6. gpcopy를 랩핑 함수
+   1) gpadmin 계정으로 DB에서 함수 생성 
+      - plpythonu를 생성 하기 위해서는 반드시 슈퍼유저이어야 함. (함수 실행은 일반유저 가능)
+      - gpcopy의 테이블 리스트는 DB명.스키마명.테이블명 또는 DB명.스키마명.테이블파티션명
+      - 아래 예제에서는 gpkrtpch는 DB명이므로, 프로젝트에 맞도록 수정 필요
+      - --on-segment-threshold -2 => 마스터 이관 
+
+create language plpythonu;
+
+CREATE OR REPLACE FUNCTION public.gpcopy_master(v_src_tb varchar, v_target_tb varchar)
+  RETURNS integer AS
+$BODY$
+
+import os
+x = os.system('gpcopy --source-host 172.16.65.90 --source-port 5432 --source-user gpadmin --dest-host 172.16.65.140 --dest-port 5432 --dest-user gpadmin  --include-table gpkrtpch.' + v_src_tb + ' --dest-table gpkrtpch.' + v_target_tb + ' --append  --on-segment-threshold -2')
+return x
+
+$BODY$
+LANGUAGE 'plpythonu' IMMUTABLE STRICT;
+
+   2) 함수 호출 (쿼리 툴에서 수행)
+       select public.gpcopy_master('gpkrtpch.lineitem_1_prt_p1992', 'gpkrtpch.lineitem_1_prt_p1992');   
