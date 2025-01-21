@@ -61,8 +61,8 @@ SELECT t2.*, t1.hostname, t1.datadir
        ) t2 
     ON t1.CONTENT = t2.segment_id
  WHERE t1.ROLE = 'p'
-   AND t2.nspname = 'public'       
-   AND t2.relname = 'test_toast'; 
+ --  AND t2.nspname = 'public'       
+ --  AND t2.relname = 'test_toast'; 
 
 nspname|relname   |tb_oid|segment_id|relkind|relfilenode|hostname|datadir             |
 -------+----------+------+----------+-------+-----------+--------+--------------------+
@@ -160,8 +160,8 @@ SELECT tb2.nspname, tb2.relname, tb2.tb_oid, tb2.segment_id, tb2.relkind, tb2.re
  WHERE tb2.nspname NOT IN ( 'pg_catalog', 'information_schema',  'gp_toolkit')
    AND tb2.nspname NOT LIKE 'pg_temp%'
    AND tb2.relkind = 'r' 
-   AND tb2.nspname = 'gpkrtpch'
-   AND tb2.relname = 'partsupp'
+--   AND tb2.nspname = 'gpkrtpch'
+--   AND tb2.relname = 'partsupp'
 ;
 nspname |relname |tb_oid|segment_id|relkind|relfilenode|filename  |size   |
 --------+--------+------+----------+-------+-----------+----------+-------+
