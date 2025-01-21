@@ -183,7 +183,7 @@ gpkrtpch|partsupp|136614|         1|r      |     121085|121085.385| 663632|
 ...
 
 
---3) 테이블별 세그먼트별 사이
+--3) 테이블별 세그먼트별 사이즈 
 SELECT tb2.nspname, tb2.relname,  tb2.segment_id, tb2.relkind, tb2.relfilenode, sum(tb1.SIZE) size
   FROM public.greenplum_get_db_file_ext tb1 
   JOIN (
