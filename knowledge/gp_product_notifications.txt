@@ -1,0 +1,13 @@
+
+Greenplum Product Notifications
+
+- Greenplum을 사용하면서 제품에 이슈가 있을 경우 공지
+
+* Critical Alerts - 제품 작동에 중요하고 고객 환경에 큰 영향을 미치거나, 많은 고객에게 부정적인 영향을 미칠 수 있는 큰 영향 및/또는 광범위한 소프트웨어 문제.
+* Product Advisories - 하나 이상의 고객 환경에서 제품 작동에 영향을 미치는 것으로 확인된 보통 또는 낮은 영향의 비전반적인 소프트웨어 문제입니다.
+* Release Announcements - Product lifecycle 공지 (GA, EOL, EOS, compatibility matrix, feature releases)
+* Security Advisories - 잠재적인 보안 위험, 취약성 및 사용 가능한 해결 방법
+* Legal Notices
+
+- 공지 및 알람 수신 설정 방법 링크 
+https://knowledge.broadcom.com/external/article/142615/subscribing-to-broadcom-product-notifica.html
