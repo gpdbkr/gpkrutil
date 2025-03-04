@@ -1,0 +1,32 @@
+
+1.  이슈 및 로그 메시지
+Greenplum 6.27.x 업그레이드 이후 아래와 같은 로그가 많이 쌓임. 
+
+"LOG","00000","send dummy packet failed, sendto failed: No route to host"
+
+2. 원인 
+IPv6에 known 이슈 
+
+3. 해결방법 / workaround 
+IPv6 비활성화
+
+The recommended workaround is to hardware disable IPv6.
+Note: Disabling IPv6 with kernel parameter "net.ipv6.conf.all.disable_ipv6=1" is not sufficient.
+
+As root user modify GRUB and reboot the machine:
+
+1) edit the file /etc/default/grub 
+Add "ipv6.disable=1" to the "GRUB_CMDLINE_LINUX" setting. It should look something like:
+GRUB_CMDLINE_LINUX="ipv6.disable=1 <more options here>..."
+
+2) Create a backup of the file /boot/grub2/grub.cfg:
+cp /boot/grub2/grub.cfg{,.bkp}
+
+3) Make new grub.cfg file
+grub2-mkconfig -o /boot/grub2/grub.cfg
+
+4)Reboot the host
+
+
+4. 관련 링크 
+https://knowledge.broadcom.com/external/article/378955/log00000send-dummy-packet-failed-sendto.html
