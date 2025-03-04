@@ -29,4 +29,4 @@ grub2-mkconfig -o /boot/grub2/grub.cfg
 
 
 4. 관련 링크 
-https://knowledge.broadcom.com/external/article/378955/log00000send-dummy-packet-failed-sendto.html
+https://knowledge.broadcom.com/external/article/378955/log00000send-dummy-packet-failed-sendto.htmls
