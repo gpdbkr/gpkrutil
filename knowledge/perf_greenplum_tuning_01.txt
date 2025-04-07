@@ -115,7 +115,8 @@ Greenplum 튜닝시 고려 사항
       - gp_enable_multiphase_agg              default: on
       - gp_workfile_compression               default: on       ==> DB 파라미터에 on으로 해서 사용(모두 적용되어 있음) 
       - join_collapse_limit                   default: 20       ==> 아주 드물게 사용, 쿼리 플랜 생성시간이 느릴 경우, 8으로 셋팅
-      - gp_autostats_mode_in_functions        default: none     ==> 함수 사용시에만 성능이 느려진 경우 on_no_stats으로 셋팅 (세션 레벨)
+      - gp_autostats_mode                     default: on_no_stats ==> 통계가 없는 경우에 한해서만 테이블 통계 수집
+      - gp_autostats_mode_in_functions        default: none        ==> 함수 사용시에만 성능이 느려진 경우 on_no_stats으로 셋팅 (세션 레벨)
 
   4) 기타 튜닝
      - json type으로 key/value를 찾을 경우 => hstore 으로 튜닝  
