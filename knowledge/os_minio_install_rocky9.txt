@@ -1,0 +1,262 @@
+Rocky 9.5에서 minio 간단 설치 
+
+####################################
+### 1. minio 설치를 위한 사전 준비 
+#################################### 
+[root@r9init ~]# hostnamectl set-hostname minio                 ###<<<<<<<< Command 
+[root@r9init ~]# hostname                                       ###<<<<<<<< Command
+minio
+[root@r9init ~]#
+[root@minio ~]# visudo                                          ###<<<<<<<< Command
+## 제일 아래에 아래와 같이 추가 
+#------------------------------------------------------------------------------
+# CUSTOMIZED OPTIONS
+#------------------------------------------------------------------------------
+gpadmin ALL=(ALL)       NOPASSWD: ALL
+
+[root@minio ~]# cat /etc/sudoers | tail -n 4                   ###<<<<<<<< Command
+#------------------------------------------------------------------------------
+# CUSTOMIZED OPTIONS
+#------------------------------------------------------------------------------
+gpadmin ALL=(ALL)       NOPASSWD: ALL
+[root@minio ~]# sudo yum install wget -y                       ###<<<<<<<< Command
+
+
+####################################
+### 2. minio 설치 
+####################################
+[root@minio ~]# su - gpadmin 
+[gpadmin@minio ~]$ wget --no-check-certificate https://dl.min.io/server/minio/release/linux-amd64/minio  ###<<<<<<<< Command
+[gpadmin@minio ~]$ chmod +x minio                             ###<<<<<<<< Command
+[gpadmin@minio ~]$ ls -la minio
+-rwxr-xr-x 1 gpadmin gpadmin 118661304 Apr  9 04:29 minio
+[gpadmin@minio ~]$ sudo mv minio /usr/local/bin/minio         ###<<<<<<<< Command
+[gpadmin@minio ~]$ which minio                                ###<<<<<<<< Command
+/usr/local/bin/minio
+[gpadmin@minio ~]$
+[gpadmin@minio ~]$ mkdir -p /data/minio                       ###<<<<<<<< Command
+[gpadmin@minio ~]$ minio server /data/minio --console-address :9001   ###<<<<<<<< Command
+INFO: Formatting 1st pool, 1 set(s), 1 drives per set.
+INFO: WARNING: Host local has more than 0 drives of set. A host failure will result in data becoming unavailable.
+MinIO Object Storage Server
+Copyright: 2015-2025 MinIO, Inc.
+License: GNU AGPLv3 - https://www.gnu.org/licenses/agpl-3.0.html
+Version: RELEASE.2025-04-08T15-41-24Z (go1.24.2 linux/amd64)
+
+API: http://172.16.65.3:9000  http://127.0.0.1:9000
+   RootUser: minioadmin
+   RootPass: minioadmin
+
+WebUI: http://172.16.65.3:9001 http://127.0.0.1:9001
+   RootUser: minioadmin
+   RootPass: minioadmin
+
+CLI: https://min.io/docs/minio/linux/reference/minio-mc.html#quickstart
+   $ mc alias set 'myminio' 'http://172.16.65.3:9000' 'minioadmin' 'minioadmin'
+
+Docs: https://docs.min.io
+WARN: Detected default credentials 'minioadmin:minioadmin', we recommend that you change these values with 'MINIO_ROOT_USER' and 'MINIO_ROOT_PASSWORD' environment variables
+
+### 중지시 Ctrl + c
+^CINFO: Exiting on signal: INTERRUPT
+[gpadmin@minio ~]$ ^C
+[gpadmin@minio ~]$
+
+####################################
+### 3. minio WebUI 접속  
+####################################
+API: http://172.16.65.3:9000  http://127.0.0.1:9000
+   RootUser: minioadmin
+   RootPass: minioadmin
+
+WebUI: http://172.16.65.3:9001 http://127.0.0.1:9001
+   RootUser: minioadmin
+   RootPass: minioadmin
+
+
+####################################
+### 4. minio 구동 스크립트 생성  
+####################################
+- 스크립트 참조: https://oingdaddy.tistory.com/138
+- minio 구동 스크립트 : minio 하위 폴더 start.sh/stop.sh 
+- 최종 경로 및 파일 리스트 
+[gpadmin@minio minio]$ cd /data/minio/
+[gpadmin@minio minio]$ ls -la
+drwxrwxr-x 2 gpadmin gpadmin  49 Sep 30 11:07 logs       ##====> minio 서버 로그 
+-rw-rw-r-- 1 gpadmin gpadmin   5 Sep 30 11:09 minio.pid  ##====> minio 프로세스 ID
+-rwxrwxr-x 1 gpadmin gpadmin 336 Sep 30 11:05 start.sh   ##====> minio start 스크립트  
+-rwxrwxr-x 1 gpadmin gpadmin 187 Sep 30 10:30 stop.sh    ##====> minio stop 스크립트  
+
+- 스크립트 
+[gpadmin@minio minio]$ pwd
+/data/minio
+[gpadmin@minio minio]$ mkdir -p /data/minio/logs
+[gpadmin@minio minio]$ vi start.sh
+[gpadmin@minio minio]$ cat start.sh
+#!/bin/bash
+
+LOG_FILE="$PWD/logs/minio.`/bin/date '+%Y%m%d'`.log"
+
+export MINIO_VOLUMES="/data/minio"
+
+export MINIO_ROOT_USER=minioadmin
+export MINIO_ROOT_PASSWORD=minioadmin
+
+minio server --console-address :9001 $MINIO_VOLUMS  >> $LOG_FILE 2>&1 &
+
+MINIO_PID=$!
+
+if [ ! -z $MINIO_PID ] ; then
+     echo "$MINIO_PID" > minio.pid
+fi
+
+[gpadmin@minio minio]$ vi stop.sh
+[gpadmin@minio minio]$ cat stop.sh
+#!/bin/bash
+
+MINIO_PID=`cat minio.pid 2> /dev/null`
+
+if [ ! -z $MINIO_PID ]; then
+    kill $MINIO_PID
+    rm -f minio.pid
+else
+    echo "No MINIO processes are currently active."
+fi
+[gpadmin@minio minio]$ chmod +x start.sh
+[gpadmin@minio minio]$ chmod +x stop.sh
+
+
+####################################
+### 5. minio 구동   
+####################################
+[gpadmin@minio ~]$ cd /data/minio/
+[gpadmin@minio minio]$ ls
+logs  start.sh  stop.sh
+
+#### minio start 
+[gpadmin@minio minio]$ ./start.sh
+[gpadmin@minio minio]$ ps -ef | grep minio
+gpadmin    18860       1 10 11:30 pts/3    00:00:00 minio server --console-address :9001
+gpadmin    18870   18790  0 11:30 pts/3    00:00:00 grep --color=auto minio
+
+#### minio WebUI 
+http://172.16.65.3:9001
+minioadmin/minioadmin 
+
+#### minio stop 
+[gpadmin@minio minio]$ ./stop.sh
+[gpadmin@minio minio]$ ps -ef | grep minio
+gpadmin    18876   18790  0 11:30 pts/3    00:00:00 grep --color=auto minio
+[gpadmin@minio minio]$
+
+#### minio log
+[gpadmin@minio minio]$ tail ./logs/minio.20250414.log
+MinIO Object Storage Server
+Copyright: 2015-2025 MinIO, Inc.
+License: GNU AGPLv3 - https://www.gnu.org/licenses/agpl-3.0.html
+Version: RELEASE.2025-04-08T15-41-24Z (go1.24.2 linux/amd64)
+
+API: http://172.16.65.3:9000  http://127.0.0.1:9000
+WebUI: http://172.16.65.3:9001 http://127.0.0.1:9001
+
+Docs: https://docs.min.io
+WARN: Detected default credentials 'minioadmin:minioadmin', we recommend that you change these values with 'MINIO_ROOT_USER' and 'MINIO_ROOT_PASSWORD' environment variables
+[gpadmin@minio minio]$
+
+####################################
+### 6. minio 설치시 output  
+####################################
+
+######### wget 설치시 output 
+[root@minio ~]# sudo yum install wget -y
+Rocky Linux 9 - BaseOS                                                    473  B/s | 4.1 kB     00:08
+Rocky Linux 9 - BaseOS                                                    198 kB/s | 2.3 MB     00:12
+Rocky Linux 9 - AppStream                                                 2.1 kB/s | 4.5 kB     00:02
+Rocky Linux 9 - AppStream                                                 1.7 MB/s | 8.6 MB     00:05
+Rocky Linux 9 - Extras                                                    1.2 kB/s | 2.9 kB     00:02
+Rocky Linux 9 - Extras                                                    5.0 kB/s |  16 kB     00:03
+Dependencies resolved.
+==========================================================================================================
+ Package             Architecture          Version                         Repository                Size
+==========================================================================================================
+Installing:
+ wget                x86_64                1.21.1-8.el9_4                  appstream                768 k
+
+Transaction Summary
+==========================================================================================================
+Install  1 Package
+
+Total download size: 768 k
+Installed size: 3.1 M
+Downloading Packages:
+wget-1.21.1-8.el9_4.x86_64.rpm                                            522 kB/s | 768 kB     00:01
+----------------------------------------------------------------------------------------------------------
+Total                                                                     354 kB/s | 768 kB     00:02
+Running transaction check
+Transaction check succeeded.
+Running transaction test
+Transaction test succeeded.
+Running transaction
+  Preparing        :                                                                                  1/1
+  Installing       : wget-1.21.1-8.el9_4.x86_64                                                       1/1
+  Running scriptlet: wget-1.21.1-8.el9_4.x86_64                                                       1/1
+  Verifying        : wget-1.21.1-8.el9_4.x86_64                                                       1/1
+
+Installed:
+  wget-1.21.1-8.el9_4.x86_64
+
+Complete!
+[root@minio ~]# 
+
+
+######### minio wget 수행시 certificate 에러 발생시 output
+[gpadmin@minio ~]$ wget https://dl.min.io/server/minio/release/linux-amd64/minio
+--2025-04-14 10:57:53--  https://dl.min.io/server/minio/release/linux-amd64/minio
+Resolving dl.min.io (dl.min.io)... 178.128.69.202, 138.68.11.125
+Connecting to dl.min.io (dl.min.io)|178.128.69.202|:443... connected.
+ERROR: The certificate of ‘dl.min.io’ is not trusted.
+ERROR: The certificate of ‘dl.min.io’ doesn't have a known issuer.
+[gpadmin@minio ~]$
+
+######### minio wget 수행시 certificate 에러 발생시 옵션 추가 후 output 
+[gpadmin@minio ~]$ wget --no-check-certificate https://dl.min.io/server/minio/release/linux-amd64/minio
+--2025-04-14 10:36:12--  https://dl.min.io/server/minio/release/linux-amd64/minio
+Resolving dl.min.io (dl.min.io)... 178.128.69.202, 138.68.11.125
+Connecting to dl.min.io (dl.min.io)|178.128.69.202|:443... connected.
+WARNING: The certificate of ‘dl.min.io’ is not trusted.
+WARNING: The certificate of ‘dl.min.io’ doesn't have a known issuer.
+HTTP request sent, awaiting response... 200 OK
+Length: 118661304 (113M) [application/octet-stream]
+Saving to: ‘minio’
+
+minio                  100%[==========================>] 113.16M  12.8MB/s    in 12s
+
+2025-04-14 10:36:25 (9.22 MB/s) - ‘minio’ saved [118661304/118661304]
+
+[gpadmin@minio ~]$
+
+
+######### minio 테스트 구동시 output 
+[gpadmin@minio ~]$ minio server /data/minio --console-address :9001
+INFO: Formatting 1st pool, 1 set(s), 1 drives per set.
+INFO: WARNING: Host local has more than 0 drives of set. A host failure will result in data becoming unavailable.
+MinIO Object Storage Server
+Copyright: 2015-2025 MinIO, Inc.
+License: GNU AGPLv3 - https://www.gnu.org/licenses/agpl-3.0.html
+Version: RELEASE.2025-04-08T15-41-24Z (go1.24.2 linux/amd64)
+
+API: http://172.16.65.3:9000  http://127.0.0.1:9000
+   RootUser: minioadmin
+   RootPass: minioadmin
+
+WebUI: http://172.16.65.3:9001 http://127.0.0.1:9001
+   RootUser: minioadmin
+   RootPass: minioadmin
+
+CLI: https://min.io/docs/minio/linux/reference/minio-mc.html#quickstart
+   $ mc alias set 'myminio' 'http://172.16.65.3:9000' 'minioadmin' 'minioadmin'
+
+Docs: https://docs.min.io
+WARN: Detected default credentials 'minioadmin:minioadmin', we recommend that you change these values with 'MINIO_ROOT_USER' and 'MINIO_ROOT_PASSWORD' environment variables
+
+
