@@ -1,0 +1,63 @@
+
+Rockey 9.5에서 네트워크 설정 및 확인 
+
+1. network device 확인 
+
+[root@r9init ~]# nmcli device
+DEVICE  TYPE      STATE                   CONNECTION
+ens160  ethernet  connected               ens160
+lo      loopback  connected (externally)  lo
+[root@r9init ~]# nmcli connection show
+NAME    UUID                                  TYPE      DEVICE
+ens160  aee068c5-b512-34e8-9a25-cc47f3bcebb3  ethernet  ens160
+lo      87972b9f-c9f2-41bd-ba8d-8aff078fda45  loopback  lo
+
+
+2. 네트워크 device 설정 
+[root@r9init ~]# nmcli connection modify ens160 ipv4.addresses 172.16.65.3/24
+[root@r9init ~]# nmcli connection modify ens160 ipv4.gateway 172.16.65.2
+[root@r9init ~]# nmcli connection modify ens160 ipv4.dns "8.8.8.8"
+[root@r9init ~]# nmcli connection modify ens160 ipv4.method manual
+[root@r9init ~]# nmcli connection down ens160; nmcli connection up ens160
+Connection 'ens160' successfully deactivated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/5)
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/6)
+
+
+3. 네트워크 device 확인 
+[root@r9init ~]# nmcli device show ens160
+GENERAL.DEVICE:                         ens160
+GENERAL.TYPE:                           ethernet
+GENERAL.HWADDR:                         00:0C:29:FC:8F:9A
+GENERAL.MTU:                            1500
+GENERAL.STATE:                          100 (connected)
+GENERAL.CONNECTION:                     ens160
+GENERAL.CON-PATH:                       /org/freedesktop/NetworkManager/ActiveConnection/7
+WIRED-PROPERTIES.CARRIER:               on
+IP4.ADDRESS[1]:                         172.16.65.3/24
+IP4.GATEWAY:                            172.16.65.2
+IP4.ROUTE[1]:                           dst = 172.16.65.0/24, nh = 0.0.0.0, mt = 100
+IP4.ROUTE[2]:                           dst = 0.0.0.0/0, nh = 172.16.65.2, mt = 100
+IP4.DNS[1]:                             8.8.8.8
+IP6.ADDRESS[1]:                         fe80::20c:29ff:fefc:8f9a/64
+IP6.GATEWAY:                            --
+IP6.ROUTE[1]:                           dst = fe80::/64, nh = ::, mt = 1024
+[root@r9init ~]#
+
+nmcli device show ens160
+
+4. ip 확인 
+[root@r9init ~]# ip addr
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: ens160: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 00:0c:29:fc:8f:9a brd ff:ff:ff:ff:ff:ff
+    altname enp3s0
+    inet 172.16.65.179/4 brd 175.255.255.255 scope global noprefixroute ens160
+       valid_lft forever preferred_lft forever
+    inet6 fe80::20c:29ff:fefc:8f9a/64 scope link noprefixroute
+       valid_lft forever preferred_lft forever
+
