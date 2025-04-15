@@ -1,0 +1,188 @@
+minio를 이용한 gpbackup & gprestore
+
+1. 관련 링크
+   1) gpbackup
+      - https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-greenplum-backup-and-restore/1-31/greenplum-backup-and-restore/utility_guide-ref-gpbackup.html
+   2) gprestore
+      - https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-greenplum-backup-and-restore/1-31/greenplum-backup-and-restore/utility_guide-ref-gprestore.html
+   3) gpbackup 유틸리티 다운로드 
+      - https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Tanzu%20Greenplum%20Backup%20and%20Restore    
+   4) minio 설치 시나리오 
+      - https://github.com/gpdbkr/gpkrutil/blob/main/knowledge/os_minio_install_rocky9.txt
+
+2. 테스트 환경
+   1) Greenplum database 6.24.6 & Rocky Linux release 8.7
+   2) minio Version: RELEASE.2025-04-08T15-41-24Z (go1.24.2 linux/amd64) & Rocky Linux release 9.5
+
+3. 백업/복구 테스트 절차 
+   1) gpbackup & gprestore 설치
+[gpadmin@mdw setup]$ gppkg --install  greenplum_backup_restore-1.30.7-gp6-rhel7-x86_64.gppkg
+
+   2) minio에 버킷 생성 
+      - data 버킷 생성 
+
+   3) gpbackup & gprestore를 위한 s3 configure yaml 파일 
+[gpadmin@r8g6single ~]$ cd gpconfigs/
+[gpadmin@r8g6single gpconfigs]$
+[gpadmin@r8g6single gpconfigs]$ vi s3-config.yaml
+[gpadmin@r8g6single gpconfigs]$ cat s3-config.yaml
+executablepath: /usr/local/greenplum-db/bin/gpbackup_s3_plugin
+options:
+  endpoint: s3.gpdbkr.com:9000
+  aws_access_key_id: minioadmin
+  aws_secret_access_key: minioadmin
+  bucket: data
+  folder: gpbackup
+  encryption: off
+  backup_max_concurrent_requests: 2
+  backup_multipart_chunksize: 500MB
+  restore_max_concurrent_requests: 2
+  restore_multipart_chunksize: 500MB
+  remove_duplicate_bucket: false
+[gpadmin@r8g6single gpconfigs]$
+
+   3) gpbackup 수행 
+[gpadmin@r8g6single gpconfigs]$ gpbackup --dbname gpadmin --plugin-config /home/gpadmin/gpconfigs/s3-config.yaml  --leaf-partition-data   
+[gpadmin@r8g6single gpconfigs]$ gpbackup_manager list-backups
+
+  timestamp        date                       status    database   type   object filtering   plugin               duration
+  20250415111137   Tue Apr 15 2025 11:11:37   Success   gpadmin    full                      gpbackup_s3_plugin   00:00:03
+
+[gpadmin@r8g6single gpconfigs]$ 
+
+  4) database drop 
+[gpadmin@r8g6single gpconfigs]$ dropdb gpadmin
+
+  5) gpresotre 
+[gpadmin@r8g6single gpconfigs]$ gprestore --timestamp 20250415111137 --plugin-config /home/gpadmin/gpconfigs/s3-config.yaml --create-db
+
+
+4. gpbackup 수행시 에러 및 조치 방법
+  1) ERROR: The difference between the request time and the server's time is too large
+     - 원인: 서버간의 시간 갭이 클 경우, minio와 GP간의 시간차, GP간의 시간차 발생시 
+     - 조치방법: 시간 동기화 
+     - 에러 메시지 예시 
+20250415:10:18:08 gpbackup:gpadmin:r8g6single:002646-[ERROR]:-ERROR: Plugin failed to process /data/master/gpseg-1/backups/20250415/20250415101806/gpbackup_20250415101806_config.yaml. 20250415:10:18:08 gpbackup_s3_plugin:gpadmin:r8g6single:003038-[ERROR]:-Error while uploading gpbackup/backups/20250415/20250415101806/gpbackup_20250415101806_config.yaml: RequestTimeTooSkewed: The difference between the request time and the server's time is too large.
+
+  2) ERROR: The specified bucket does not exist
+     - 원인: s3 yaml 설정파일에 기입된 minio의 버킷이 없을 경우 
+     - 조치방법: minio에서 버킷 생성 
+     - 에러 메시지 예시 
+20250415:10:19:27 gpbackup:gpadmin:r8g6single:003057-[ERROR]:-ERROR: Plugin failed to process /data/master/gpseg-1/backups/20250415/20250415101925/gpbackup_20250415101925_config.yaml. 20250415:10:19:27 gpbackup_s3_plugin:gpadmin:r8g6single:003453-[ERROR]:-Error while uploading gpbackup/backups/20250415/20250415101925/gpbackup_20250415101925_config.yaml: NoSuchBucket: The specified bucket does not exist
+
+  3) ERROR: command error message: fatal error: runtime: out of memory
+     - 원인: gpbackup 수행도중 메모리 부족 
+     - 조치방법: s3 configure yaml 파일의 설정 중에 backup_max_concurrent_requests 수를 낮춰 줌
+              4GB 메모리일경우 backup_max_concurrent_requests의 값이 1 또는 2에서는 성공, 3이상의 값 입력시 OOM 에러 발생
+     - 에러 메시지 예시 
+20250415:10:25:04 gpbackup:gpadmin:r8g6single:003489-[DEBUG]:-Worker 1: Executing "COPY public.test_trx TO PROGRAM 'gzip -c -1 | /usr/local/greenplum-db/bin/gpbackup_s3_plugin backup_data /tmp/20250415102501_s3-config.yaml <SEG_DATA_DIR>/backups/20250415/20250415102501/gpbackup_<SEGID>_20250415102501_16385.gz' WITH CSV DELIMITER ',' ON SEGMENT IGNORE EXTERNAL PARTITIONS;" on master
+20250415:10:25:05 gpbackup:gpadmin:r8g6single:003489-[CRITICAL]:-20250415:10:25:05 gpbackup:gpadmin:r8g6single:003489-[CRITICAL]:-ERROR: command error message: fatal error: runtime: out of memory
+
+runtime stack:
+runtime.throw({0xb39d9e?, 0x46?})
+	/usr/local/go/src/runtime/panic.go:1077 +0x5c fp=0x7fff89898098 sp=0x7fff89898068 pc=0x43ab1c
+runtime.sysMapOS(0xc000400000, 0xbb800000?)
+	/usr/local/go/src/runtime/mem_linux.go:142 +0x116 fp=0x7fff898980e0 sp=0x7fff89898098 pc=0x41bf36
+runtime.sysMap(0x1337e20?, 0x430ba0?, 0x1347fe8?)
+	/usr/local/go/src/runtime/mem.go:149 +0x34 fp=0x7fff89898110 sp=0x7fff898980e0 pc=0x41b9b4
+
+
+5. 유틸리티 명령어 수행시 output 
+
+##### greenplum_backup_restore 설치시 output 
+[gpadmin@mdw setup]$ gppkg --install  greenplum_backup_restore-1.30.7-gp6-rhel7-x86_64.gppkg
+20250331:10:52:09:077040 gppkg:mdw:gpadmin-[INFO]:-Starting gppkg with args: --install greenplum_backup_restore-1.30.7-gp6-rhel7-x86_64.gppkg
+20250331:10:52:09:077040 gppkg:mdw:gpadmin-[INFO]:-Installing package greenplum_backup_restore-1.30.7-gp6-rhel7-x86_64.gppkg
+20250331:10:52:10:077040 gppkg:mdw:gpadmin-[INFO]:-Validating rpm installation cmdStr='rpm --test -i /usr/local/greenplum-db-6.24.6/.tmp/gpbackup_tools_RHEL7-1.30.7-1.x86_64.rpm --dbpath /usr/local/greenplum-db-6.24.6/share/packages/database --prefix /usr/local/greenplum-db-6.24.6'
+20250331:10:52:18:077040 gppkg:mdw:gpadmin-[INFO]:-Installing greenplum_backup_restore-1.30.7-gp6-rhel7-x86_64.gppkg locally
+20250331:10:52:18:077040 gppkg:mdw:gpadmin-[INFO]:-Validating rpm installation cmdStr='rpm --test -i /usr/local/greenplum-db-6.24.6/.tmp/gpbackup_tools_RHEL7-1.30.7-1.x86_64.rpm --dbpath /usr/local/greenplum-db-6.24.6/share/packages/database --prefix /usr/local/greenplum-db-6.24.6'
+20250331:10:52:18:077040 gppkg:mdw:gpadmin-[INFO]:-Installing rpms cmdStr='rpm -i --force /usr/local/greenplum-db-6.24.6/.tmp/gpbackup_tools_RHEL7-1.30.7-1.x86_64.rpm --dbpath /usr/local/greenplum-db-6.24.6/share/packages/database --prefix=/usr/local/greenplum-db-6.24.6'
+20250331:10:52:20:077040 gppkg:mdw:gpadmin-[INFO]:-Completed local installation of greenplum_backup_restore-1.30.7-gp6-rhel7-x86_64.gppkg.
+20250331:10:52:21:077040 gppkg:mdw:gpadmin-[INFO]:-gpbackup 1.30.7 successfully installed
+20250331:10:52:21:077040 gppkg:mdw:gpadmin-[INFO]:-greenplum_backup_restore-1.30.7-gp6-rhel7-x86_64.gppkg successfully installed.
+[gpadmin@mdw setup]$
+[gpadmin@mdw setup]$ which gpbackup
+/usr/local/greenplum-db-6.24.6/bin/gpbackup
+[gpadmin@mdw setup]$ which gprestore
+/usr/local/greenplum-db-6.24.6/bin/gprestore
+[gpadmin@mdw setup]$ which gpbackup_s3_plugin
+/usr/local/greenplum-db-6.24.6/bin/gpbackup_s3_plugin
+
+
+##### gpbackup 수행 후 output 
+[gpadmin@r8g6single gpconfigs]$ gpbackup --dbname gpadmin --plugin-config /home/gpadmin/gpconfigs/s3-config.yaml  --leaf-partition-data
+20250415:11:11:37 gpbackup:gpadmin:r8g6single:007898-[INFO]:-gpbackup version = 1.30.7
+20250415:11:11:37 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Greenplum Database Version = 6.24.6 build commit:65583e9f5cccae53d49944762bb1ab1302647321
+20250415:11:11:37 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Starting backup of database gpadmin
+20250415:11:11:37 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Reading Plugin Config /home/gpadmin/gpconfigs/s3-config.yaml
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Backup Timestamp = 20250415111137
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Backup Database = gpadmin
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Gathering table state information
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Acquiring ACCESS SHARE locks on tables
+Locks acquired:  2 / 2 [================================================================] 100.00% 0s
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Gathering additional table metadata
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Getting partition definitions
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Getting storage information
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Getting child partitions with altered schema
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Metadata will be written to /data/master/gpseg-1/backups/20250415/20250415111137/gpbackup_20250415111137_metadata.sql
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Writing global database metadata
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Global database metadata backup complete
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Writing pre-data metadata
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Pre-data metadata metadata backup complete
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Writing post-data metadata
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Post-data metadata backup complete
+20250415:11:11:38 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Writing data to file
+Tables backed up:  2 / 2 [==============================================================] 100.00% 0s
+20250415:11:11:39 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Data backup complete
+20250415:11:11:40 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Found neither /usr/local/greenplum-db-6.24.6/bin/gp_email_contacts.yaml nor /home/gpadmin/gp_email_contacts.yaml
+20250415:11:11:40 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Email containing gpbackup report /data/master/gpseg-1/backups/20250415/20250415111137/gpbackup_20250415111137_report will not be sent
+20250415:11:11:40 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Beginning cleanup
+20250415:11:11:40 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Cleanup complete
+20250415:11:11:40 gpbackup:gpadmin:r8g6single:007898-[INFO]:-Backup completed successfully
+[gpadmin@r8g6single gpconfigs]$
+
+
+##### gprestore 수행 후 output 
+[gpadmin@r8g6single gpconfigs]$ gprestore --timestamp 20250415111137 --plugin-config /home/gpadmin/gpconfigs/s3-config.yaml --create-db
+20250415:11:24:33 gprestore:gpadmin:r8g6single:008890-[INFO]:-Restore Key = 20250415111137
+20250415:11:24:33 gprestore:gpadmin:r8g6single:008890-[INFO]:-Reading Plugin Config /home/gpadmin/gpconfigs/s3-config.yaml
+20250415:11:24:33 gprestore:gpadmin:r8g6single:008890-[INFO]:-plugin config path: /tmp/20250415112433_s3-config.yaml
+20250415:11:24:34 gprestore:gpadmin:r8g6single:008890-[INFO]:-gpbackup version = 1.30.7
+20250415:11:24:34 gprestore:gpadmin:r8g6single:008890-[INFO]:-gprestore version = 1.30.7
+20250415:11:24:34 gprestore:gpadmin:r8g6single:008890-[INFO]:-Greenplum Database Version = 6.24.6 build commit:65583e9f5cccae53d49944762bb1ab1302647321
+20250415:11:24:34 gprestore:gpadmin:r8g6single:008890-[INFO]:-Creating database
+20250415:11:24:35 gprestore:gpadmin:r8g6single:008890-[INFO]:-Database creation complete for: gpadmin
+20250415:11:24:35 gprestore:gpadmin:r8g6single:008890-[INFO]:-Restoring pre-data metadata
+Pre-data objects restored:  21 / 21 [===================================================] 100.00% 0s
+20250415:11:24:35 gprestore:gpadmin:r8g6single:008890-[INFO]:-Pre-data metadata restore complete
+Table data loads restored:  2 / 2 [=====================================================] 100.00% 0s
+20250415:11:24:35 gprestore:gpadmin:r8g6single:008890-[INFO]:-Data restore complete
+20250415:11:24:35 gprestore:gpadmin:r8g6single:008890-[INFO]:-Restoring post-data metadata
+Post-data objects restored:  1 / 1 [====================================================] 100.00% 0s
+20250415:11:24:35 gprestore:gpadmin:r8g6single:008890-[INFO]:-Post-data metadata restore complete
+20250415:11:24:35 gprestore:gpadmin:r8g6single:008890-[INFO]:-Found neither /usr/local/greenplum-db-6.24.6/bin/gp_email_contacts.yaml nor /home/gpadmin/gp_email_contacts.yaml
+20250415:11:24:35 gprestore:gpadmin:r8g6single:008890-[INFO]:-Email containing gprestore report /data/master/gpseg-1/backups/20250415/20250415111137/gprestore_20250415111137_20250415112433_report will not be sent
+20250415:11:24:35 gprestore:gpadmin:r8g6single:008890-[INFO]:-Beginning cleanup
+20250415:11:24:35 gprestore:gpadmin:r8g6single:008890-[INFO]:-Cleanup complete
+20250415:11:24:35 gprestore:gpadmin:r8g6single:008890-[INFO]:-Restore completed successfully
+[gpadmin@r8g6single gpconfigs]$
+
+
+##### gpbackup 후 minio의 경로 
+[gpadmin@minio 20250415111137]$ pwd
+/data/minio/data/gpbackup/backups/20250415/20250415111137
+[gpadmin@minio 20250415111137]$ ls -la
+total 4
+drwxr-xr-x 11 gpadmin gpadmin 4096 Apr 15 11:11 .
+drwxr-xr-x  3 gpadmin gpadmin   28 Apr 15 11:11 ..
+drwxr-xr-x  2 gpadmin gpadmin   21 Apr 15 11:11 gpbackup_0_20250415111137_16385.gz
+drwxr-xr-x  2 gpadmin gpadmin   21 Apr 15 11:11 gpbackup_0_20250415111137_16389.gz
+drwxr-xr-x  2 gpadmin gpadmin   21 Apr 15 11:11 gpbackup_1_20250415111137_16385.gz
+drwxr-xr-x  2 gpadmin gpadmin   21 Apr 15 11:11 gpbackup_1_20250415111137_16389.gz
+drwxr-xr-x  2 gpadmin gpadmin   21 Apr 15 11:11 gpbackup_20250415111137_config.yaml
+drwxr-xr-x  2 gpadmin gpadmin   21 Apr 15 11:11 gpbackup_20250415111137_metadata.sql
+drwxr-xr-x  2 gpadmin gpadmin   21 Apr 15 11:11 gpbackup_20250415111137_plugin_config.yaml
+drwxr-xr-x  2 gpadmin gpadmin   21 Apr 15 11:11 gpbackup_20250415111137_report
+drwxr-xr-x  2 gpadmin gpadmin   21 Apr 15 11:11 gpbackup_20250415111137_toc.yaml
+[gpadmin@minio 20250415111137]$
+
