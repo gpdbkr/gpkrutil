@@ -1,0 +1,137 @@
+
+Greenplum에서 File unload 방식 
+
+1. Greenplum client의 파일 시스템에 File unload 방식
+   1) copy 명령어 
+   2) gpfdist와 writable external table 이용  
+
+2. 테스트 환경
+  1) Greenplum Server: Greenplum 6.24.6 (싱글서버)
+     IP: 172.16.65.90
+  2) Greenplum Client: Greenplum 6.29.0 (원격 클라이언트 Rocky 9.5)
+     IP: 172.16.65.3
+
+3. Greenplum Client 설치 (Rocky 9.5)
+  1) Greenplum client 설치 
+[gpadmin@client setup]$ sudo yum install -y greenplum-db-clients-6.29.0-rhel9-x86_64.rpm
+Last metadata expiration check: 1:50:44 ago on Tue Apr 15 11:35:16 2025.
+Dependencies resolved.
+=====================================================================================================================
+ Package                            Architecture         Version                    Repository                  Size
+=====================================================================================================================
+Installing:
+ greenplum-db-clients               x86_64               6.29.0-1.el9               @commandline               123 M
+
+Transaction Summary
+=====================================================================================================================
+Install  1 Package
+
+Total size: 123 M
+Installed size: 383 M
+Downloading Packages:
+Running transaction check
+Transaction check succeeded.
+Running transaction test
+Transaction test succeeded.
+Running transaction
+  Preparing        :                                                                                             1/1
+  Installing       : greenplum-db-clients-6.29.0-1.el9.x86_64                                                    1/1
+  Running scriptlet: greenplum-db-clients-6.29.0-1.el9.x86_64                                                    1/1
+  Verifying        : greenplum-db-clients-6.29.0-1.el9.x86_64                                                    1/1
+
+Installed:
+  greenplum-db-clients-6.29.0-1.el9.x86_64
+
+Complete!
+[gpadmin@client setup]$
+
+  2) Greenplum Client 환경 설정 
+[gpadmin@client ~]$ vi ~/.bashrc
+[gpadmin@client ~]$ tail  ~/.bashrc
+
+## Greenplum Client Settings
+source /usr/local/greenplum-db-clients-6.29.0/greenplum_clients_path.sh
+export PGHOST=172.16.65.9        ## Greenplum Master IP
+export PGPORT=5432
+export PGDATABASE=gpkrtpch
+
+[gpadmin@client ~]$
+
+  3) Greenplum Client에서 패스워드 기입 없이 수행하기 위한 설정  
+
+[gpadmin@client ~]$ vi ~/.pgpass
+[gpadmin@client ~]$ cat ~/.pgpass
+#Greenplum Master IP:Port:Database:User:Password
+*:5432:*:gpadmin:changeme
+[gpadmin@client ~]$ chmod 600  ~/.pgpass
+[gpadmin@client ~]$ ls -la .pgpass
+-rw------- 1 gpadmin gpadmin 26 Apr 15 20:34 .pgpass
+[gpadmin@client ~]$
+
+
+4. copy로 unload
+  - copy command는 Greenplum client인 psql의 command 임.
+  - copy할 때 "\" 역슬래쉬 들어가면 파일 언로드하는 서버가 원격일 때, 만약 "\"를 빼면 Greenplum 서버에서 unload를 수행
+    즉, 대부분은 클라이언트에서 수행되기 때문에 항상 \copy 형태로 사용 함. 
+  1) 특정 테이블을 file로 txt로 unload  
+psql -h 172.16.65.90 -p 5432 -d gpkrtpch -c "\copy gpkrtpch.lineitem to '/data/unload/data/unload_lineitem_copy.txt' with (format text, delimiter '|', header false);"
+
+  2) select 구문의 결과를 txt로 unload
+psql -h 172.16.65.90 -p 5432 -d gpkrtpch -c "\copy (select * from gpkrtpch.lineitem where l_shipdate >= '2001-01-01' and l_shipdate <= '2012-12-31') to '/data/unload/data/unload_lineitem_copy.txt' with (format text, delimiter '|', header false);"
+
+  3) select 구문의 결과를 txt를 gzip 압축하면서 unload
+psql -h 172.16.65.90 -p 5432 -d gpkrtpch -c "\copy (select * from gpkrtpch.lineitem where l_shipdate >= '2001-01-01' and l_shipdate <= '2012-12-31') to program 'gzip > /data/unload/data/unload_lineitem_copy.txt.gz' with (format text, delimiter '|', header false);"
+
+
+5. gpfdist 및 external 테이블 활용  
+  - gpfdist는 Greenplum Client 설치시에 같이 설치되며, ETL 서버 또는 Greenplum Client에서 설치 함.
+  - gpfdist를 이용하기 위해서는 Greenplum 마스터 및 세그먼트 서버가 Greenplum Client 네트워크에 접속이 가능해야 함.
+    내부적으로 Greenplum 세그먼트 노드가 Greenplum Client에 데이터를 내려주는 구조. 
+  - 일반적으로 Greenplum 클러스터의 /etc/hosts 파일에 Greenplum Client IP를 추가 함.
+  - Greenplum 클러스터의 /etc/hosts
+[gpadmin@r8g6single ~]$ cat /etc/hosts
+172.16.65.90 mdw cdw r8g6single r8g6single.gpdbkr.com ## Greenplum 클러스터의 IP, 테스트 Greenplum 클러스터는 싱글서버
+172.16.65.3  client s3 etl client                     ## Client 서버 IP 추가 
+
+
+  1) gpfdist 구동  
+  ## Default로 구동 
+  [gpadmin@client ~]$ gpfdist -p 8081 -d /data/unload/data -l /data/unload/gpfdist.log &
+  ## 데이터 전송시 압축하는 경우 
+  [gpadmin@client ~]$ gpfdist -p 8081 -d /data/unload/data -l /data/unload/gpfdist_net_com.log --compress --multi_thread 16 &
+
+  2) 데이터 언로드 
+  ## txt로 unload 
+[gpadmin@client unload]$ cat unload_lineitem_gpfdist_network_compress_dk.sh
+psql -h 172.16.65.90 -p 5432 -d gpkrtpch << EOF
+
+DROP EXTERNAL TABLE IF EXISTS public.exw_lineitem_gpfdist_network_compress_dk;
+
+CREATE WRITABLE EXTERNAL TABLE public.exw_lineitem_gpfdist_network_compress_dk(LIKE gpkrtpch.lineitem)
+LOCATION ('gpfdist://etl:8081/unload_lineitem_gpfdist_network_compress_dk.txt')
+FORMAT 'TEXT' ( DELIMITER '|' NULL '')
+DISTRIBUTED BY(l_orderkey);
+
+INSERT INTO public.exw_lineitem_gpfdist_network_compress_dk
+select * from gpkrtpch.lineitem where l_shipdate >= '2001-01-01' and l_shipdate <= '2012-12-31';
+
+EOF
+[gpadmin@client unload]$ sh unload_lineitem_gpfdist_network_compress_dk.sh
+
+  ## txt.gz으로 unload, 확장자가 gz일때 자동으로 압축
+[gpadmin@client unload]$ cat unload_lineitem_gpfdist_network_compress_gz_dk.sh
+psql -h 172.16.65.90 -p 5432 -d gpkrtpch << EOF
+
+DROP EXTERNAL TABLE IF EXISTS public.exw_lineitem_gpfdist_network_compress_gz_dk;
+
+CREATE WRITABLE EXTERNAL TABLE public.exw_lineitem_gpfdist_network_compress_gz_dk(LIKE gpkrtpch.lineitem)
+LOCATION ('gpfdist://etl:8081/unload_lineitem_gpfdist_network_compress_dk.txt.gz')
+FORMAT 'TEXT' ( DELIMITER '|' NULL '')
+DISTRIBUTED BY (l_orderkey);
+
+INSERT INTO public.exw_lineitem_gpfdist_network_compress_gz_dk
+select * from gpkrtpch.lineitem where l_shipdate >= '2001-01-01' and l_shipdate <= '2012-12-31';
+
+EOF
+
+[gpadmin@client unload]$ sh unload_lineitem_gpfdist_network_compress_gz_dk.sh
