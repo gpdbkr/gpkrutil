@@ -1,6 +1,10 @@
 awk를 이용해서 특정 컬럼의 row수, average, sum 추출
 
-awk '{sum+=$1} END {print NR" "sum/NR" "sum}'
+# count avg sum
+cat tmp.txt | awk '{sum+=$1} END {print NR" "sum/NR" "sum}'
+
+# count | avg | sum | min | max 
+cat tmp.txt | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; sum+=$1; cnt+=1} END {print cnt"|"sum/cnt"|"sum"|"min"|"max}'
 
 
 [gpadmin@r9s1 log]$ cat query_short_loop_ctas.sh_ss1.log
@@ -49,3 +53,18 @@ Time: 514.725 ms
 50 1038.36 51917.8
 [gpadmin@r9s1 log]$
 
+
+[gpadmin@r9s1 log]$ cat tmp.txt
+1559.274
+912.798
+1065.203
+378.583
+328.106
+1351.431
+1484.308
+1034.425
+315.208
+295.836
+[gpadmin@r9s1 log]$ cat tmp.txt | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; sum+=$1; cnt+=1} END {print cnt"|"sum/cnt"|"sum"|"min"|"max}'
+10|872.517|8725.17|295.836|1559.274
+[gpadmin@r9s1 log]$
