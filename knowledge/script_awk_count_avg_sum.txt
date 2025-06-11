@@ -1,0 +1,51 @@
+awk를 이용해서 특정 컬럼의 row수, average, sum 추출
+
+awk '{sum+=$1} END {print NR" "sum/NR" "sum}'
+
+
+[gpadmin@r9s1 log]$ cat query_short_loop_ctas.sh_ss1.log
+...
+SELECT ((random()*1000000000)::int%10000000) cust_id
+Time: 15.112 ms
+drop table if exists tmp_259161;
+NOTICE:  table "tmp_259161" does not exist, skipping
+DROP TABLE
+Time: 507.544 ms
+create temp table tmp_259161
+as
+/*+ NestLoop(a b) */
+SELECT a.cust_id, a.cust_nm, b.prod_nm
+FROM   public.customer a
+     , public.order_log b
+WHERE a.cust_id = b.cust_id
+  AND a.cust_id = 259161
+distributed randomly
+;
+SELECT 3
+Time: 890.430 ms
+Timing is on.
+SELECT ((random()*1000000000)::int%10000000) cust_id
+Time: 8.741 ms
+drop table if exists tmp_7398287;
+NOTICE:  table "tmp_7398287" does not exist, skipping
+DROP TABLE
+Time: 229.799 ms
+create temp table tmp_7398287
+as
+/*+ NestLoop(a b) */
+SELECT a.cust_id, a.cust_nm, b.prod_nm
+FROM   public.customer a
+     , public.order_log b
+WHERE a.cust_id = b.cust_id
+  AND a.cust_id = 7398287
+distributed randomly
+;
+SELECT 3
+Time: 514.725 ms
+...
+
+
+[gpadmin@r9s1 log]$ grep "SELECT 3" -a3 ./query_short_loop_ctas.sh_ss* | grep Time | awk -F":" '{print $2}'  |awk '{sum+=$1} END {print NR" "sum/NR" "sum}'
+50 1038.36 51917.8
+[gpadmin@r9s1 log]$
+
