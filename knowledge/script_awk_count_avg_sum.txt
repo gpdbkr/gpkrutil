@@ -1,10 +1,42 @@
 awk를 이용해서 특정 컬럼의 row수, average, sum 추출
 
-# count avg sum
-cat tmp.txt | awk '{sum+=$1} END {print NR" "sum/NR" "sum}'
+### test data
+$ cat tmp1.txt
+1559.274
+912.798
+1065.203
+378.583
+328.106
+1351.431
+1484.308
+1034.425
+315.208
+295.836
 
-# count | avg | sum | min | max 
-cat tmp.txt | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; sum+=$1; cnt+=1} END {print cnt"|"sum/cnt"|"sum"|"min"|"max}'
+### cnt avg sum
+$ cat tmp1.txt | awk '{sum+=$1} END {print NR" "sum/NR" "sum}'
+10 872.517 8725.17
+
+### cnt avg sum min max 
+$ cat tmp1.txt | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; sum+=$1; cnt+=1} END {print cnt"|"sum/cnt"|"sum"|"min"|"max}'
+10|872.517|8725.17|295.836|1559.274
+
+### cnt avg sum min max without line
+$ cat tmp1.txt | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; sum+=$1; cnt+=1} END {print cnt"|"sum/cnt"|"sum"|"min"|"max}' | sed 's/|/\n/g'
+10
+872.517
+8725.17
+295.836
+1559.274
+
+### cnt avg sum min max with line
+$ cat tmp1.txt | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; sum+=$1; cnt+=1} END {print "cnt: "cnt"|avg: "sum/cnt"|sum: "sum"|min: "min"|max:" max}' | sed 's/|/\n/g'
+cnt: 10
+avg: 872.517
+sum: 8725.17
+min: 295.836
+max:1559.274
+[gpadmin@r9s1 log]$
 
 
 [gpadmin@r9s1 log]$ cat query_short_loop_ctas.sh_ss1.log
@@ -54,7 +86,10 @@ Time: 514.725 ms
 [gpadmin@r9s1 log]$
 
 
-[gpadmin@r9s1 log]$ cat tmp.txt
+
+### paste, 로그 2개를 옆으로 연결할 때
+
+[gpadmin@r9s1 log]$ cat tmp1.txt
 1559.274
 912.798
 1065.203
@@ -65,22 +100,28 @@ Time: 514.725 ms
 1034.425
 315.208
 295.836
-[gpadmin@r9s1 log]$ cat tmp.txt | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; sum+=$1; cnt+=1} END {print cnt"|"sum/cnt"|"sum"|"min"|"max}'
-10|872.517|8725.17|295.836|1559.274
-
-
-[gpadmin@r9s1 log]$ cat tmp.txt | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; sum+=$1; cnt+=1} END {print cnt"|"sum/cnt"|"sum"|"min"|"max}' | sed 's/|/\n/g'
-10
-872.517
-8725.17
-295.836
-1559.274
-
-[gpadmin@r9s1 log]$ cat tmp.txt | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; sum+=$1; cnt+=1} END {print "cnt: "cnt"|avg: "sum/cnt"|sum: "sum"|min: "min"|max:" max}' | sed 's/|/\n/g'
-cnt: 10
-avg: 872.517
-sum: 8725.17
-min: 295.836
-max:1559.274
+[gpadmin@r9s1 log]$ cat tmp2.txt
+1764.392
+567.084
+1307.530
+1030.990
+832.376
+1827.665
+1331.640
+700.170
+1094.599
+579.093
+[gpadmin@r9s1 log]$ paste tmp1.txt tmp2.txt
+1559.274  1764.392
+912.798 567.084
+1065.203  1307.530
+378.583 1030.990
+328.106 832.376
+1351.431  1827.665
+1484.308  1331.640
+1034.425  700.170
+315.208 1094.599
+295.836 579.093
 [gpadmin@r9s1 log]$
+
 
