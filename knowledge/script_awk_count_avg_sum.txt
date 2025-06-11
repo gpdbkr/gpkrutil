@@ -67,4 +67,20 @@ Time: 514.725 ms
 295.836
 [gpadmin@r9s1 log]$ cat tmp.txt | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; sum+=$1; cnt+=1} END {print cnt"|"sum/cnt"|"sum"|"min"|"max}'
 10|872.517|8725.17|295.836|1559.274
+
+
+[gpadmin@r9s1 log]$ cat tmp.txt | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; sum+=$1; cnt+=1} END {print cnt"|"sum/cnt"|"sum"|"min"|"max}' | sed 's/|/\n/g'
+10
+872.517
+8725.17
+295.836
+1559.274
+
+[gpadmin@r9s1 log]$ cat tmp.txt | awk '{if(min==""){min=max=$1}; if($1>max) {max=$1}; if($1<min) {min=$1}; sum+=$1; cnt+=1} END {print "cnt: "cnt"|avg: "sum/cnt"|sum: "sum"|min: "min"|max:" max}' | sed 's/|/\n/g'
+cnt: 10
+avg: 872.517
+sum: 8725.17
+min: 295.836
+max:1559.274
 [gpadmin@r9s1 log]$
+
