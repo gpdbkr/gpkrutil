@@ -1,0 +1,131 @@
+Greenplum은 PostgreSQL에서 제공하는 pgbench Benchmark 툴을 제공. 
+초당 트랜댁션 횟수를 확인할 수 있음. 
+
+1. 사용 목적
+   - 테스트할 쿼리가 있으면, 간단하게 부하 테스트할 수 있음.
+   - 초당 트랜잭션을 확인할 수 있음.
+
+2. 테스트 사례
+   - Resource Queue/Group 테스트시 유용
+   - mixed workload test 시 별도로 shell 스크립트 없이 동시성 테스트를 진행할 수 있음.
+
+3. pgbench 경로
+
+[gpadmin@r9s1 sr]$ which pgbench
+/usr/local/greenplum-db-7.4.1/bin/pgbench
+
+4. pgbench 테스트 예제
+
+## 1개 세션에서 (-c 1), 2개 트랜젝션(-t 쿼리 2회 실행) , -n (test 전에 vacuum을 실행하지 않음)
+[gpadmin@r9s1 sr]$ pgbench -c 1 -t 2 -f query_big_comp.sql -n -U ubig
+transaction type: query_big_comp.sql
+scaling factor: 1
+query mode: simple
+number of clients: 1
+number of threads: 1
+number of transactions per client: 2
+number of transactions actually processed: 2/2
+latency average = 10289.905 ms
+tps = 0.097183 (including connections establishing)
+tps = 0.097202 (excluding connections establishing)
+[gpadmin@r9s1 sr]$
+
+## 1개 세션에서 (-c 1), 30초 동안(-T 30) sql 파일 수행 -n (test 전에 vacuum을 실행하지 않음)
+[gpadmin@r9s1 sr]$ pgbench -c 1 -f query_big_comp.sql -n -T 30 -U ubig
+transaction type: query_big_comp.sql
+scaling factor: 1
+query mode: simple
+number of clients: 1
+number of threads: 1
+duration: 30 s
+number of transactions actually processed: 3
+latency average = 10181.429 ms
+tps = 0.098218 (including connections establishing)
+tps = 0.098234 (excluding connections establishing)
+[gpadmin@r9s1 sr]$
+
+
+## 10개 세션에서 (-c 10), 10초 동안(-T 10) sql 파일 수행, -n (test 전에 vacuum을 실행하지 않음)
+[gpadmin@r9s1 sr]$ pgbench -c 10 -f query_short_loop_ctas.sql -n -T 10 -U ushort
+transaction type: query_short_loop_ctas.sql
+scaling factor: 1
+query mode: simple
+number of clients: 10
+number of threads: 1
+duration: 10 s
+number of transactions actually processed: 247
+latency average = 419.181 ms
+tps = 23.856036 (including connections establishing)
+tps = 23.865454 (excluding connections establishing)
+[gpadmin@r9s1 sr]$
+
+
+5. pgbench help 
+
+[gpadmin@r9s1 sr]$ pgbench --help
+pgbench is a benchmarking tool for PostgreSQL.
+
+Usage:
+  pgbench [OPTION]... [DBNAME]
+
+Initialization options:
+  -i, --initialize         invokes initialization mode
+  -x STRING    append this string to the storage clause e.g. 'appendonly=true, orientation=column'
+  -I, --init-steps=[dtgvpf]+ (default "dtgvp")
+                           run selected initialization steps
+  -F, --fillfactor=NUM     set fill factor
+  -n, --no-vacuum          do not run VACUUM during initialization
+  -q, --quiet              quiet logging (one message each 5 seconds)
+  -s, --scale=NUM          scaling factor
+  --foreign-keys           create foreign key constraints between tables
+  --use-unique-keys        make the indexes that are created non-unique indexes
+                           (default: unique)
+  --index-tablespace=TABLESPACE
+                           create indexes in the specified tablespace
+  --tablespace=TABLESPACE  create tables in the specified tablespace
+  --unlogged-tables        create tables as unlogged tables
+
+Options to select what to run:
+  -b, --builtin=NAME[@W]   add builtin script NAME weighted at W (default: 1)
+                           (use "-b list" to list available scripts)
+  -f, --file=FILENAME[@W]  add script FILENAME weighted at W (default: 1)
+  -N, --skip-some-updates  skip updates of pgbench_tellers and pgbench_branches
+                           (same as "-b simple-update")
+  -S, --select-only        perform SELECT-only transactions
+                           (same as "-b select-only")
+
+Benchmarking options:
+  -c, --client=NUM         number of concurrent database clients (default: 1)
+  -C, --connect            establish new connection for each transaction
+  -D, --define=VARNAME=VALUE
+                           define variable for use by custom script
+  -j, --jobs=NUM           number of threads (default: 1)
+  -l, --log                write transaction times to log file
+  -L, --latency-limit=NUM  count transactions lasting more than NUM ms as late
+  -M, --protocol=simple|extended|prepared
+                           protocol for submitting queries (default: simple)
+  -n, --no-vacuum          do not run VACUUM before tests
+  -P, --progress=NUM       show thread progress report every NUM seconds
+  -r, --report-latencies   report average latency per command
+  -R, --rate=NUM           target rate in transactions per second
+  -s, --scale=NUM          report this scale factor in output
+  -t, --transactions=NUM   number of transactions each client runs (default: 10)
+  -T, --time=NUM           duration of benchmark test in seconds
+  -v, --vacuum-all         vacuum all four standard tables before tests
+  --aggregate-interval=NUM aggregate data over NUM seconds
+  --log-prefix=PREFIX      prefix for transaction time log file
+                           (default: "pgbench_log")
+  --progress-timestamp     use Unix epoch timestamps for progress
+  --random-seed=SEED       set random seed ("time", "rand", integer)
+  --sampling-rate=NUM      fraction of transactions to log (e.g., 0.01 for 1%)
+
+Common options:
+  -d, --debug              print debugging output
+  -h, --host=HOSTNAME      database server host or socket directory
+  -p, --port=PORT          database server port number
+  -U, --username=USERNAME  connect as specified database user
+  -V, --version            output version information, then exit
+  -?, --help               show this help, then exit
+
+Report bugs to <bugs@greenplum.org>.
+[gpadmin@r9s1 sr]$
