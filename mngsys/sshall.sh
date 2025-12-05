@@ -12,6 +12,7 @@ HOST_LIST=`cat ${GPKRUTIL}/hostfile_all`
 CMD=$1
 for host in ${HOST_LIST}
 do
-   echo ">>>>>>>>>>>>>" ${host}
-    ssh ${host} "$CMD"
+#    echo ">>>>>>>>>>>>>" ${host}
+#    ssh ${host} "$CMD"
+    ssh ${host} "$CMD" | awk -v HOST=${host} '{print "["HOST"] "$0}'
 done
