@@ -37,8 +37,10 @@ alias si='psql -c "select sum(case when state = '\''active'\'' then 1 else 0 end
 ###########################
 ####### locks 
 ###########################
-alias lt='psql  -c "SELECT distinct w.locktype, w.relation::regclass AS relation, w.mode, w.pid as waiting_pid, other.pid as running_pid, w.gp_segment_id FROM pg_catalog.pg_locks AS w JOIN pg_catalog.pg_stat_activity AS w_stm ON (w_stm.pid = w.pid) JOIN pg_catalog.pg_locks AS other ON ((w.DATABASE = other.DATABASE AND w.relation = other.relation) OR w.transactionid = other.transactionid) JOIN pg_catalog.pg_stat_activity AS other_stm ON (other_stm.pid = other.pid) WHERE NOT w.granted and w.pid <> other.pid;"'   ## locked table with session
-alias locks='psql -c " SELECT pid, relname, locktype, mode, a.gp_segment_id from pg_locks a, pg_class where relation=oid and relname not like '\''pg_%'\'' order by 3;"'   ## lock information
+#alias lt='psql  -c "SELECT distinct w.locktype, w.relation::regclass AS relation, w.mode, w.pid as waiting_pid, other.pid as running_pid, w.gp_segment_id FROM pg_catalog.pg_locks AS w JOIN pg_catalog.pg_stat_activity AS w_stm ON (w_stm.pid = w.pid) JOIN pg_catalog.pg_locks AS other ON ((w.DATABASE = other.DATABASE AND w.relation = other.relation) OR w.transactionid = other.transactionid) JOIN pg_catalog.pg_stat_activity AS other_stm ON (other_stm.pid = other.pid) WHERE NOT w.granted and w.pid <> other.pid;"'   ## locked table with session
+#alias locks='psql -c " SELECT pid, relname, locktype, mode, a.gp_segment_id from pg_locks a, pg_class where relation=oid and relname not like '\''pg_%'\'' order by 3;"'   ## lock information
+alias lt='psql  -c "SELECT distinct w.locktype, w.relation::regclass AS relation, w.mode, w.pid as waiting_pid, w.mppsessionid as waiting_ssid, other.pid as running_pid, other.mppsessionid as running_ssid, w.gp_segment_id FROM pg_catalog.pg_locks AS w JOIN pg_catalog.pg_stat_activity AS w_stm ON (w_stm.pid = w.pid) JOIN pg_catalog.pg_locks AS other ON ((w.DATABASE = other.DATABASE AND w.relation = other.relation) OR w.transactionid = other.transactionid) JOIN pg_catalog.pg_stat_activity AS other_stm ON (other_stm.pid = other.pid) WHERE NOT w.granted and w.pid <> other.pid;"'   ## locked table with session
+alias locks='psql -c " SELECT pid, mppsessionid, relname, locktype, mode, a.gp_segment_id from pg_locks a, pg_class where relation=oid and relname not like '\''pg_%'\'' order by 3;"'   ## lock information
 
 ###########################
 ###### DB management 
