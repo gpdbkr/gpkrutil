@@ -17,3 +17,4 @@ ${STAT_PATH}/rss.sh $1 $2          >> ${STATLOG}/rss.`/bin/date '+%Y%m%d'`.txt &
 ${STAT_PATH}/session.sh $1 $2      >> ${STATLOG}/session.`/bin/date '+%Y%m%d'`.txt &
 ${STAT_PATH}/session_user.sh $1 $2 >> ${STATLOG}/session_user.`/bin/date '+%Y%m%d'`.txt &
 ${STAT_PATH}/pgb_user.sh $1 $2     >> ${STATLOG}/pgb_user.`/bin/date '+%Y%m%d'`.txt &
+${STAT_PATH}/locks.sh $1 $2.       >> ${STATLOG}/locks.`/bin/date '+%Y%m%d'`.txt &
